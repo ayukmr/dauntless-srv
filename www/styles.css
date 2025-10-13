@@ -1,0 +1,36 @@
+section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+canvas {
+  background: #000000;
+}
+
+header {
+  display: flex;
+  align-items: center;
+}
+
+header img {
+  height: 100px;
+  margin-inline: -30px;
+}
+
+header h3 {
+  display: none;
+}
+
+header.dcnn img {
+  filter: grayscale(100%);
+}
+
+header.dcnn h3 {
+  display: block;
+  margin-left: 25px;
+}
+
+header.dcnn .message {
+  color: red;
+}
