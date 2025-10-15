@@ -26,11 +26,11 @@ function drawFrame() {
   fCtx.putImageData(frame, 0, 0);
 
   for (const tag of tags) {
-    const { id, corners: [tl, tr, bl, br] } = tag;
+    const { id, corners  } = tag;
 
     if (id === null) continue;
 
-    const corners = [tl, tr, br, bl];
+    const [tl, tr, bl, br] = corners;
 
     const xs = corners.map((pt) => pt[0]);
     const ys = corners.map((pt) => pt[1]);
@@ -38,12 +38,10 @@ function drawFrame() {
     const x = (Math.min(...xs) + Math.max(...xs)) / 2;
     const y = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    for (let i = 0; i < corners.length; i++) {
-      const c0 = corners[i];
-      const c1 = corners[(i + 1) % 4];
-
-      line(fCtx, c0, c1, 'red');
-    }
+    line(fCtx, tl, tr, 'red');
+    line(fCtx, tr, br, 'red');
+    line(fCtx, br, bl, 'red');
+    line(fCtx, bl, tl, 'red');
 
     text(fCtx, id, x, y);
   }
