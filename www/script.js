@@ -26,7 +26,7 @@ function drawFrame() {
   fCtx.putImageData(frame, 0, 0);
 
   for (const tag of tags) {
-    const { id, corners  } = tag;
+    const { id, corners } = tag;
 
     if (id === null) continue;
 
