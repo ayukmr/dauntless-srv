@@ -1,6 +1,6 @@
 #[macro_use] extern crate rocket;
 
-use dauntless::{Filter, Tag};
+use dauntless::{Config, Tag};
 
 use std::thread;
 use std::sync::{Arc, RwLock};
@@ -23,6 +23,7 @@ use opencv::prelude::*;
 pub struct Data {
     pub tags: Vec<Tag>,
     pub frame: Vec<Vec<f32>>,
+    pub mask: Vec<Vec<f32>>,
 }
 
 #[get("/tags")]
@@ -35,6 +36,30 @@ fn frame(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Vec<f32>>> {
     Json(state.read().unwrap().frame.clone())
 }
 
+#[get("/mask")]
+fn mask(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Vec<f32>>> {
+    Json(state.read().unwrap().mask.clone())
+}
+
+#[get("/config")]
+fn get_config() -> Json<Config> {
+    Json(dauntless::get_config().clone())
+}
+
+#[post("/config", data = "<config>")]
+fn set_config(config: Json<Config>) {
+    dauntless::set_config(*config);
+}
+
+#[post("/config/reset")]
+fn reset_config() -> Json<Config> {
+    let config = Config::default();
+
+    dauntless::set_config(config);
+
+    Json(config)
+}
+
 #[launch]
 fn rocket() -> _ {
     let state = Arc::new(
@@ -42,6 +67,7 @@ fn rocket() -> _ {
             Data {
                 tags: Vec::new(),
                 frame: Vec::new(),
+                mask: Vec::new(),
             },
         ),
     );
@@ -49,10 +75,12 @@ fn rocket() -> _ {
     let state_cln = Arc::clone(&state);
     thread::spawn(move || update(&state_cln));
 
+    dauntless::set_config(Config::default());
+
     rocket::build()
         .manage(state)
         .mount("/", FileServer::from("./www"))
-        .mount("/api", routes![tags, frame])
+        .mount("/api", routes![tags, frame, mask, get_config, set_config, reset_config])
 }
 
 fn update(state: &Arc<RwLock<Data>>) {
@@ -121,15 +149,51 @@ fn update(state: &Arc<RwLock<Data>>) {
 
         let mut s = state.write().unwrap();
 
-        s.frame =
-            data.rows()
-            .into_iter()
-            .map(|row| row.to_vec())
-            .collect();
+        s.frame = to_data(&resized);
 
-        s.tags = dauntless::tags_custom(
-            data,
-            Filter { quads: true, paras: true, enclosed: false },
-        );
+        let (mask, tags) = dauntless::tags2(data);
+
+        let h = mask.dim().0;
+
+        let a = mask.mapv(|b| if b { 255u8 } else { 0u8 });
+        let x = a.as_standard_layout();
+        let slice = x.as_slice().unwrap();
+
+        let mat = Mat::from_slice(&slice).unwrap().reshape(1, h as i32).unwrap().clone_pointee();
+
+        s.mask = to_data(&mat);
+
+        s.tags = tags;
     }
+}
+
+fn to_data(img: &Mat) -> Vec<Vec<f32>> {
+    let h = img.rows();
+    let w = img.cols();
+
+    let mut resized = Mat::default();
+
+    let scale = 200.0 / i32::max(w, h) as f32;
+    let sw = (w as f32 * scale) as i32;
+    let sh = (h as f32 * scale) as i32;
+
+    imgproc::resize(
+        img,
+        &mut resized,
+        core::Size::new(sw, sh),
+        0.0,
+        0.0,
+        imgproc::INTER_LINEAR,
+    ).unwrap();
+
+    let data = Array2::from_shape_vec(
+        (sh as usize, sw as usize),
+        resized.data_bytes().unwrap().to_vec(),
+    ).unwrap().mapv(|l| l as f32) / 255.0;
+
+    data
+        .rows()
+        .into_iter()
+        .map(|row| row.to_vec())
+        .collect()
 }

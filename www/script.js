@@ -1,19 +1,29 @@
 const fCnv = document.querySelector('#frame');
 const fCtx = fCnv.getContext('2d');
 
+const mCnv = document.querySelector('#mask');
+const mCtx = mCnv.getContext('2d');
+
 const tCnv = document.querySelector('#top');
 const tCtx = tCnv.getContext('2d');
 
 const header = document.querySelector('header');
 
+const settings = document.querySelectorAll('#settings input');
+const reset = document.querySelector('#reset');
+
+let config = null;
+
 let frame = null;
+let mask = null;
 let tags = null;
 
-const errs = { frame: false, tags: false };
+const errs = { frame: false, mask: false, tags: false };
 
 function draw() {
   if (frame !== null && tags !== null) {
     drawFrame();
+    drawMask();
     drawTags();
   }
 
@@ -44,6 +54,23 @@ function drawFrame() {
     line(fCtx, bl, tl, 'red');
 
     text(fCtx, id, x, y);
+  }
+}
+
+function drawMask() {
+  mCtx.putImageData(mask, 0, 0);
+
+  for (const tag of tags) {
+    const { id, corners } = tag;
+
+    if (id === null) continue;
+
+    for (const corner of corners) {
+      point(mCtx, corner[0], corner[1], 'red');
+      point(mCtx, corner[0], corner[1], 'red');
+      point(mCtx, corner[0], corner[1], 'red');
+      point(mCtx, corner[0], corner[1], 'red');
+    }
   }
 }
 
@@ -83,6 +110,13 @@ function rect(ctx, x, y, w, h, color) {
   ctx.fillRect(x, y, w, h);
 }
 
+function point(ctx, x, y, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function line(ctx, p0, p1, color) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 3;
@@ -106,12 +140,23 @@ function update() {
   fetch('/api/frame')
     .then((res) => res.json())
     .then((data) => {
-      createFrame(data);
+      frame = createFrame(data, fCnv, fCtx);
       errs.frame = false;
     })
     .catch((err) => {
       console.error(err);
       errs.frame = true;
+    });
+
+  fetch('/api/mask')
+    .then((res) => res.json())
+    .then((data) => {
+      mask = createFrame(data, mCnv, mCtx);
+      errs.mask = false;
+    })
+    .catch((err) => {
+      console.error(err);
+      errs.mask = true;
     });
 
   fetch('/api/tags')
@@ -126,28 +171,81 @@ function update() {
     });
 }
 
-function createFrame(data) {
+function createFrame(data, cnv, ctx) {
   const h = data.length;
   const w = data[0].length;
 
-  fCnv.width = w;
-  fCnv.height = h;
+  const scale = 2;
 
-  frame = fCtx.createImageData(w, h);
+  cnv.width = w * scale;
+  cnv.height = h * scale;
+
+  const frame = ctx.createImageData(w * scale, h * scale);
   const pixels = frame.data;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const l = data[y][x] * 255;
-      const i = (y * w + x) * 4;
 
-      pixels[i] = l;
-      pixels[i + 1] = l;
-      pixels[i + 2] = l;
-      pixels[i + 3] = 255;
+      for (let dy = 0; dy < scale; dy++) {
+        for (let dx = 0; dx < scale; dx++) {
+          const px = x * scale + dx;
+          const py = y * scale + dy;
+
+          const i = (py * w * scale + px) * 4;
+
+          pixels[i] = l;
+          pixels[i + 1] = l;
+          pixels[i + 2] = l;
+          pixels[i + 3] = 255;
+        }
+      }
     }
   }
+
+  return frame;
 }
+
+function initSettings() {
+  fetch('/api/config')
+    .then((res) => res.json())
+    .then((data) => {
+      config = data;
+
+      settings.forEach((input) => {
+        input.value = config[input.name];
+        input.addEventListener('input', () => setConfig());
+      });
+
+      reset.addEventListener('click', () => resetConfig());
+    });
+}
+
+function setConfig() {
+  settings.forEach((input) => {
+    config[input.name] = parseFloat(input.value);
+  });
+
+  fetch('/api/config', {
+    method: 'POST',
+    body: JSON.stringify(config)
+  });
+}
+
+function resetConfig() {
+  fetch('/api/config/reset', { method: 'POST' })
+    .then((res) => res.json())
+    .then((data) => {
+      config = data;
+
+      settings.forEach((input) => {
+        input.value = config[input.name];
+        input.addEventListener('input', () => setConfig());
+      });
+    });
+}
+
+initSettings();
 
 setInterval(update, 10);
 requestAnimationFrame(draw);

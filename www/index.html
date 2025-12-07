@@ -24,15 +24,49 @@
                 <h3 class="message">Disconnected</h3>
             </header>
 
-            <section>
+            <section id="views">
                 <div>
                     <h3>Frame</h3>
                     <canvas id="frame"></canvas>
                 </div>
 
                 <div>
+                    <h3>Mask</h3>
+                    <canvas id="mask"></canvas>
+                </div>
+            </section>
+
+            <section>
+                <div>
                     <h3>Tags</h3>
                     <canvas id="top"></canvas>
+                </div>
+            </section>
+
+            <section>
+                <h2>Settings</h2>
+
+                <div id="settings">
+                    <div>
+                        <label>Harris K</label>
+                        <input type="number" name="harris_k"></input>
+
+                        <label>Harris Thresh</label>
+                        <input type="number" name="harris_thresh"></input>
+                    </div>
+
+                    <div>
+                        <label>Hysteresis Low</label>
+                        <input type="number" name="hyst_low"></input>
+
+                        <label>Hysteresis High</label>
+                        <input type="number" name="hyst_high"></input>
+                    </div>
+
+                    <div>
+                        <label>Defaults</label>
+                        <button id="reset">Reset</button>
+                    </div>
                 </div>
             </section>
         </main>
