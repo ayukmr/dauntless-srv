@@ -7,6 +7,8 @@ const mCtx = mCnv.getContext('2d');
 const tCnv = document.querySelector('#top');
 const tCtx = tCnv.getContext('2d');
 
+const fps = document.querySelector('#fps');
+
 const header = document.querySelector('header');
 
 const settings = document.querySelectorAll('#settings input');
@@ -18,7 +20,7 @@ let frame = null;
 let mask = null;
 let tags = null;
 
-const errs = { frame: false, mask: false, tags: false };
+const errs = { frame: false, tags: false };
 
 function draw() {
   if (frame !== null && tags !== null) {
@@ -137,6 +139,12 @@ function text(ctx, text, x, y) {
 }
 
 function update() {
+  fetch('/api/fps')
+    .then((res) => res.json())
+    .then((data) => {
+      fps.innerText = data.toFixed(2);
+    });
+
   fetch('/api/frame')
     .then((res) => res.json())
     .then((data) => {
@@ -152,11 +160,11 @@ function update() {
     .then((res) => res.json())
     .then((data) => {
       mask = createFrame(data, mCnv, mCtx);
-      errs.mask = false;
+      errs.frame = false;
     })
     .catch((err) => {
       console.error(err);
-      errs.mask = true;
+      errs.frame = true;
     });
 
   fetch('/api/tags')

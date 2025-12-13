@@ -5,6 +5,7 @@ canvas {
 header {
   display: flex;
   align-items: center;
+  gap: 25px;
 }
 
 header img {
@@ -12,7 +13,11 @@ header img {
   margin-inline: -30px;
 }
 
-header h3 {
+#fps {
+  font-variant-numeric: tabular-nums;
+}
+
+header .alert {
   display: none;
 }
 
@@ -20,12 +25,11 @@ header.dcnn img {
   filter: grayscale(100%);
 }
 
-header.dcnn h3 {
+header.dcnn .alert {
   display: block;
-  margin-left: 25px;
 }
 
-header.dcnn .message {
+header.dcnn .alert.message {
   color: red;
 }
 

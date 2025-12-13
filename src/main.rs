@@ -21,9 +21,15 @@ use opencv::prelude::*;
 
 #[derive(Serialize)]
 pub struct Data {
+    pub fps: Option<f32>,
     pub tags: Vec<Tag>,
     pub frame: Vec<Vec<f32>>,
     pub mask: Vec<Vec<f32>>,
+}
+
+#[get("/fps")]
+fn fps(state: &State<Arc<RwLock<Data>>>) -> Json<Option<f32>> {
+    Json(state.read().unwrap().fps)
 }
 
 #[get("/tags")]
@@ -65,6 +71,7 @@ fn rocket() -> _ {
     let state = Arc::new(
         RwLock::new(
             Data {
+                fps: None,
                 tags: Vec::new(),
                 frame: Vec::new(),
                 mask: Vec::new(),
@@ -80,14 +87,14 @@ fn rocket() -> _ {
     rocket::build()
         .manage(state)
         .mount("/", FileServer::from("./www"))
-        .mount("/api", routes![tags, frame, mask, get_config, set_config, reset_config])
+        .mount("/api", routes![fps, tags, frame, mask, get_config, set_config, reset_config])
 }
 
 fn update(state: &Arc<RwLock<Data>>) {
     let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
 
     let mut last = Instant::now();
-    let mut fps = 0.0;
+    let mut fps = None;
     let mut tick = 0;
 
     loop {
@@ -99,16 +106,20 @@ fn update(state: &Arc<RwLock<Data>>) {
         }
 
         let now = Instant::now();
-        let dt = now.duration_since(last).as_secs_f64();
+        let dt = now.duration_since(last).as_secs_f32();
 
         last = now;
 
         if dt > 0.0 {
-            fps = 0.9 * fps + 0.1 * (1.0 / dt);
+            if let Some(last) = fps {
+                fps = Some(0.9 * last + 0.1 * (1.0 / dt));
+            } else {
+                fps = Some(1.0 / dt);
+            }
         }
 
         if tick % 10 == 0 {
-            print!("\r{} fps", fps as i32);
+            print!("\r{} fps", fps.unwrap() as i32);
             io::stdout().flush().unwrap();
         }
         tick += 1;
@@ -148,6 +159,8 @@ fn update(state: &Arc<RwLock<Data>>) {
         ).unwrap().mapv(|l| l as f32) / 255.0;
 
         let mut s = state.write().unwrap();
+
+        s.fps = fps;
 
         s.frame = to_data(&resized);
 
