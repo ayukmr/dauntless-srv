@@ -34,7 +34,7 @@ pub fn encode(mat: &Mat) -> Vec<u8> {
     let mut buf = core::Vector::<u8>::new();
     imgcodecs::imencode(".jpg", mat, &mut buf, &params).unwrap();
 
-    buf.to_vec().into()
+    buf.to_vec()
 }
 
 #[get("/fps")]
@@ -61,7 +61,7 @@ fn mask(state: &State<Arc<RwLock<Data>>>) -> Option<(ContentType, Arc<[u8]>)> {
 
 #[get("/config")]
 fn get_config() -> Json<Config> {
-    Json(dauntless::get_config().clone())
+    Json(dauntless::get_config())
 }
 
 #[post("/config", data = "<config>")]
@@ -193,7 +193,7 @@ fn update(state: &Arc<RwLock<Data>>) {
         let h = mask.dim().0;
 
         let mat =
-            Mat::from_slice(&slice)
+            Mat::from_slice(slice)
                 .unwrap()
                 .reshape(1, h as i32)
                 .unwrap()
