@@ -1,29 +1,27 @@
-const fCnv = document.querySelector('#frame');
+const SCALE = 4;
+
+const query = (q) => document.querySelector(q);
+const queryAll = (q) => document.querySelectorAll(q);
+
+const fCnv = query('#frame');
 const fCtx = fCnv.getContext('2d');
-
-const mCnv = document.querySelector('#mask');
+const mCnv = query('#mask');
 const mCtx = mCnv.getContext('2d');
-
-const tCnv = document.querySelector('#top');
+const tCnv = query('#top');
 const tCtx = tCnv.getContext('2d');
 
-const fps = document.querySelector('#fps');
-
-const header = document.querySelector('header');
-
-const settings = document.querySelectorAll('#settings input');
-const reset = document.querySelector('#reset');
+const fps = query('#fps');
+const header = query('header');
+const settings = queryAll('#settings input');
+const reset = query('#reset');
 
 let config = null;
-
-let frame = null;
-let mask = null;
 let tags = null;
 
 const errs = { frame: false, tags: false };
 
 function draw() {
-  if (frame !== null && tags !== null) {
+  if (tags !== null) {
     drawFrame();
     drawMask();
     drawTags();
@@ -35,12 +33,8 @@ function draw() {
 }
 
 function drawFrame() {
-  fCtx.putImageData(frame, 0, 0);
-
   for (const tag of tags) {
     const { id, corners } = tag;
-
-    if (id === null) continue;
 
     const [tl, tr, bl, br] = corners;
 
@@ -50,28 +44,29 @@ function drawFrame() {
     const x = (Math.min(...xs) + Math.max(...xs)) / 2;
     const y = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    line(fCtx, tl, tr, 'red');
-    line(fCtx, tr, br, 'red');
-    line(fCtx, br, bl, 'red');
-    line(fCtx, bl, tl, 'red');
+    const clr = color('#ff0000', id);
 
-    text(fCtx, id, x, y);
+    line(fCtx, tl, tr, clr);
+    line(fCtx, tr, br, clr);
+    line(fCtx, br, bl, clr);
+    line(fCtx, bl, tl, clr);
+
+    if (id !== null) {
+      text(fCtx, id, x, y);
+    }
   }
 }
 
 function drawMask() {
-  mCtx.putImageData(mask, 0, 0);
-
   for (const tag of tags) {
     const { id, corners } = tag;
 
-    if (id === null) continue;
-
+    const clr = color('#ff0000', id);
     for (const corner of corners) {
-      point(mCtx, corner[0], corner[1], 'red');
-      point(mCtx, corner[0], corner[1], 'red');
-      point(mCtx, corner[0], corner[1], 'red');
-      point(mCtx, corner[0], corner[1], 'red');
+      point(mCtx, corner[0], corner[1], clr);
+      point(mCtx, corner[0], corner[1], clr);
+      point(mCtx, corner[0], corner[1], clr);
+      point(mCtx, corner[0], corner[1], clr);
     }
   }
 }
@@ -83,13 +78,11 @@ function drawTags() {
   const w = tCnv.width;
   const h = tCnv.height;
 
-  rect(tCtx, 0, 0, w, h, 'black');
-  rect(tCtx, w/2 - 50, h - 25, 100, 50, 'red');
+  rect(tCtx, 0, 0, w, h, '#000000');
+  rect(tCtx, w/2 - 50, h - 25, 100, 50, '#333333');
 
   for (const tag of tags) {
     const { id, rot, pos } = tag;
-
-    if (id === null) continue;
 
     const x = w/2 + pos[0] * 50;
     const y = h - 25 - pos[2] * 50;
@@ -100,11 +93,17 @@ function drawTags() {
     const p0 = [x - dx/2, y - dy/2];
     const p1 = [x + dx/2, y + dy/2];
 
-    line(tCtx, p0, p1, 'blue');
-    line(tCtx, [w/2, h - 25], [x, y], 'red');
+    line(tCtx, p0, p1, color('#0000ff', id));
+    line(tCtx, [w/2, h - 25], [x, y], color('#ff0000', id));
 
-    text(tCtx, `${id}@${Math.round(rot * 180/Math.PI)}°`, x, y);
+    if (id !== null) {
+      text(tCtx, `${id}@${Math.round(rot * 180/Math.PI)}°`, x, y);
+    }
   }
+}
+
+function color(c, id) {
+  return `${c}${id === null ? '55' : 'ff'}`;
 }
 
 function rect(ctx, x, y, w, h, color) {
@@ -131,7 +130,7 @@ function line(ctx, p0, p1, color) {
 
 function text(ctx, text, x, y) {
   ctx.font = '14px Menlo';
-  ctx.fillStyle = 'red';
+  ctx.fillStyle = '#ff0000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -145,28 +144,18 @@ function update() {
       fps.innerText = buf.toFixed(2);
     });
 
-  fetch('/api/frame')
-    .then((res) => res.arrayBuffer())
-    .then((data) => {
-      const mat = loadData(data);
-      frame = createFrame(mat, fCnv, fCtx);
-      errs.frame = false;
-    })
+  fetchDraw('/api/frame', fCnv, fCtx)
+    .then(() => errs.frame = false)
     .catch((err) => {
       console.error(err);
       errs.frame = true;
     });
 
-  fetch('/api/mask')
-    .then((res) => res.arrayBuffer())
-    .then((buf) => {
-      const mat = loadData(buf);
-      mask = createFrame(mat, mCnv, mCtx);
-      errs.frame = false;
-    })
+  fetchDraw('/api/mask', mCnv, mCtx)
+    .then(() => errs.mask = false)
     .catch((err) => {
       console.error(err);
-      errs.frame = true;
+      errs.mask = true;
     });
 
   fetch('/api/tags')
@@ -181,50 +170,17 @@ function update() {
     });
 }
 
-function loadData(buf) {
-  const vals = new Float32Array(buf);
+async function fetchDraw(url, cnv, ctx) {
+  const blob = await fetch(url).then((r) => r.blob());
+  const bmp = await createImageBitmap(blob);
 
-  const cols = 100;
-  const rows = vals.length / cols;
+  cnv.width = bmp.width * SCALE;
+  cnv.height = bmp.height * SCALE;
 
-  return Array.from({ length: rows }, (_, r) =>
-    vals.subarray(r * cols, (r + 1) * cols)
-  );
-}
+  ctx.imageSmoothingEnabled = false;
 
-function createFrame(data, cnv, ctx) {
-  const h = data.length;
-  const w = data[0].length;
-
-  const scale = 4;
-
-  cnv.width = w * scale;
-  cnv.height = h * scale;
-
-  const frame = ctx.createImageData(w * scale, h * scale);
-  const pixels = frame.data;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const l = data[y][x] * 255;
-
-      for (let dy = 0; dy < scale; dy++) {
-        for (let dx = 0; dx < scale; dx++) {
-          const px = x * scale + dx;
-          const py = y * scale + dy;
-
-          const i = (py * w * scale + px) * 4;
-
-          pixels[i] = l;
-          pixels[i + 1] = l;
-          pixels[i + 2] = l;
-          pixels[i + 3] = 255;
-        }
-      }
-    }
-  }
-
-  return frame;
+  ctx.drawImage(bmp, 0, 0);
+  ctx.drawImage(cnv, 0, 0, bmp.width, bmp.height, 0, 0, cnv.width, cnv.height);
 }
 
 function initSettings() {
