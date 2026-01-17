@@ -7,24 +7,33 @@ use std::sync::{Arc, RwLock};
 
 use std::io;
 use std::io::Write;
+use std::slice;
 use std::time::Instant;
 
 use rocket::State;
 use rocket::fs::FileServer;
-
 use rocket::serde::json::Json;
-use serde::Serialize;
 
 use ndarray::Array2;
 use opencv::{core, videoio, imgproc};
 use opencv::prelude::*;
 
-#[derive(Serialize)]
-pub struct Data {
+struct Data {
     pub fps: Option<f32>,
     pub tags: Vec<Tag>,
     pub frame: Vec<Vec<f32>>,
     pub mask: Vec<Vec<f32>>,
+}
+
+fn encode(data: &Vec<Vec<f32>>) -> Vec<u8> {
+    let flat: Vec<f32> = data.iter().flatten().copied().collect();
+
+    unsafe {
+        slice::from_raw_parts(
+            flat.as_ptr() as *const u8,
+            flat.len() * 4,
+        )
+    }.to_vec()
 }
 
 #[get("/fps")]
@@ -38,13 +47,15 @@ fn tags(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Tag>> {
 }
 
 #[get("/frame")]
-fn frame(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Vec<f32>>> {
-    Json(state.read().unwrap().frame.clone())
+fn frame(state: &State<Arc<RwLock<Data>>>) -> Vec<u8> {
+    let frame = state.read().unwrap().frame.clone();
+    encode(&frame)
 }
 
 #[get("/mask")]
-fn mask(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Vec<f32>>> {
-    Json(state.read().unwrap().mask.clone())
+fn mask(state: &State<Arc<RwLock<Data>>>) -> Vec<u8> {
+    let mask = state.read().unwrap().mask.clone();
+    encode(&mask)
 }
 
 #[get("/config")]
@@ -82,7 +93,13 @@ fn rocket() -> _ {
     let state_cln = Arc::clone(&state);
     thread::spawn(move || update(&state_cln));
 
-    dauntless::set_config(Config::default());
+    dauntless::set_config(Config {
+        harris_k: 0.001,
+        harris_thresh: 0.001,
+        hyst_high: 0.2,
+        filter_enclosed: false,
+        ..Config::default()
+    });
 
     rocket::build()
         .manage(state)
@@ -186,7 +203,7 @@ fn to_data(img: &Mat) -> Vec<Vec<f32>> {
 
     let mut resized = Mat::default();
 
-    let scale = 200.0 / i32::max(w, h) as f32;
+    let scale = 100.0 / i32::max(w, h) as f32;
     let sw = (w as f32 * scale) as i32;
     let sh = (h as f32 * scale) as i32;
 
@@ -196,7 +213,7 @@ fn to_data(img: &Mat) -> Vec<Vec<f32>> {
         core::Size::new(sw, sh),
         0.0,
         0.0,
-        imgproc::INTER_LINEAR,
+        imgproc::INTER_AREA,
     ).unwrap();
 
     let data = Array2::from_shape_vec(

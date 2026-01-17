@@ -141,14 +141,15 @@ function text(ctx, text, x, y) {
 function update() {
   fetch('/api/fps')
     .then((res) => res.json())
-    .then((data) => {
-      fps.innerText = data.toFixed(2);
+    .then((buf) => {
+      fps.innerText = buf.toFixed(2);
     });
 
   fetch('/api/frame')
-    .then((res) => res.json())
+    .then((res) => res.arrayBuffer())
     .then((data) => {
-      frame = createFrame(data, fCnv, fCtx);
+      const mat = loadData(data);
+      frame = createFrame(mat, fCnv, fCtx);
       errs.frame = false;
     })
     .catch((err) => {
@@ -157,9 +158,10 @@ function update() {
     });
 
   fetch('/api/mask')
-    .then((res) => res.json())
-    .then((data) => {
-      mask = createFrame(data, mCnv, mCtx);
+    .then((res) => res.arrayBuffer())
+    .then((buf) => {
+      const mat = loadData(buf);
+      mask = createFrame(mat, mCnv, mCtx);
       errs.frame = false;
     })
     .catch((err) => {
@@ -179,11 +181,22 @@ function update() {
     });
 }
 
+function loadData(buf) {
+  const vals = new Float32Array(buf);
+
+  const cols = 100;
+  const rows = vals.length / cols;
+
+  return Array.from({ length: rows }, (_, r) =>
+    vals.subarray(r * cols, (r + 1) * cols)
+  );
+}
+
 function createFrame(data, cnv, ctx) {
   const h = data.length;
   const w = data[0].length;
 
-  const scale = 2;
+  const scale = 4;
 
   cnv.width = w * scale;
   cnv.height = h * scale;
