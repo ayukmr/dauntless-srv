@@ -8,33 +8,60 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use std::thread;
 
-use rocket::State;
+use rocket::{Request, Response, State};
 use rocket::fs::FileServer;
 use rocket::serde::json::Json;
 use rocket::http::ContentType;
+use rocket::response;
+use rocket::response::Responder;
 
 use ndarray::Array2;
-use opencv::{core, imgcodecs, imgproc, videoio};
+
+use opencv::{core, imgproc, videoio};
+use opencv::core::ToInputArray;
 use opencv::prelude::*;
 
 const SCALE: i32 = 4;
 
+#[derive(Clone)]
+struct Frame {
+    pub width: i32,
+    pub height: i32,
+    pub data: Arc<[u8]>,
+}
+
+impl Frame {
+    fn encode(mat: &Mat) -> Self {
+        let width = mat.cols();
+        let height = mat.rows();
+
+        let bytes = mat.data_bytes().unwrap().to_vec();
+
+        Self {
+            width,
+            height,
+            data: bytes.into(),
+        }
+    }
+}
+
+impl<'r> Responder<'r, 'static> for Frame {
+    fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
+        Response::build()
+            .header(ContentType::Binary)
+            .raw_header("X-Width", self.width.to_string())
+            .raw_header("X-Height", self.height.to_string())
+            .raw_header("X-Scale", SCALE.to_string())
+            .sized_body(self.data.len(), io::Cursor::new(Arc::clone(&self.data)))
+            .ok()
+    }
+}
+
 struct Data {
     pub fps: Option<f32>,
     pub tags: Vec<Tag>,
-    pub frame: Option<Arc<[u8]>>,
-    pub mask: Option<Arc<[u8]>>,
-}
-
-pub fn encode(mat: &Mat) -> Vec<u8> {
-    let params = core::Vector::<i32>::from_iter([
-        imgcodecs::IMWRITE_JPEG_QUALITY, 75,
-    ]);
-
-    let mut buf = core::Vector::<u8>::new();
-    imgcodecs::imencode(".jpg", mat, &mut buf, &params).unwrap();
-
-    buf.to_vec()
+    pub frame: Option<Frame>,
+    pub mask: Option<Frame>,
 }
 
 #[get("/fps")]
@@ -48,15 +75,13 @@ fn tags(state: &State<Arc<RwLock<Data>>>) -> Json<Vec<Tag>> {
 }
 
 #[get("/frame")]
-fn frame(state: &State<Arc<RwLock<Data>>>) -> Option<(ContentType, Arc<[u8]>)> {
-    let bytes = state.read().unwrap().frame.as_ref()?.clone();
-    Some((ContentType::JPEG, bytes))
+fn frame(state: &State<Arc<RwLock<Data>>>) -> Option<Frame> {
+    Some(state.read().ok()?.frame.as_ref()?.clone())
 }
 
 #[get("/mask")]
-fn mask(state: &State<Arc<RwLock<Data>>>) -> Option<(ContentType, Arc<[u8]>)> {
-    let bytes = state.read().unwrap().mask.as_ref()?.clone();
-    Some((ContentType::JPEG, bytes))
+fn mask(state: &State<Arc<RwLock<Data>>>) -> Option<Frame> {
+    Some(state.read().ok()?.mask.as_ref()?.clone())
 }
 
 #[get("/config")]
@@ -171,7 +196,7 @@ fn update(state: &Arc<RwLock<Data>>) {
         let roi = core::Rect::new(x, y, cw, ch);
         let cropped = Mat::roi(&light, roi).unwrap();
 
-        let resized = resize(&cropped.clone_pointee(), 400);
+        let resized = resize(&cropped, 400);
 
         let sw = resized.cols();
         let sh = resized.rows();
@@ -182,7 +207,7 @@ fn update(state: &Arc<RwLock<Data>>) {
                 resized.data_bytes().unwrap().to_vec(),
             )
             .unwrap()
-            .mapv(|l| l as f32) / 255.0;
+            .mapv(|l| l as f32 / 255.0);
 
         let (mask, tags) = dauntless::tags2(data);
 
@@ -199,8 +224,8 @@ fn update(state: &Arc<RwLock<Data>>) {
                 .unwrap()
                 .clone_pointee();
 
-        let frame = encode(&resize(&resized, 400 / SCALE));
-        let mask = encode(&resize(&mat, 400 / SCALE));
+        let frame = Frame::encode(&resize(&resized, 400 / SCALE));
+        let mask = Frame::encode(&resize(&mat, 400 / SCALE));
 
         {
             let mut s = state.write().unwrap();
@@ -212,7 +237,10 @@ fn update(state: &Arc<RwLock<Data>>) {
     }
 }
 
-fn resize(img: &Mat, max: i32) -> Mat {
+fn resize<T>(img: &T, max: i32) -> Mat
+where
+    T: MatTraitConst + ToInputArray,
+{
     let w = img.cols();
     let h = img.rows();
 

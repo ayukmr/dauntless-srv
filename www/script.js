@@ -1,5 +1,3 @@
-const SCALE = 4;
-
 const query = (q) => document.querySelector(q);
 const queryAll = (q) => document.querySelectorAll(q);
 
@@ -171,16 +169,30 @@ function update() {
 }
 
 async function fetchDraw(url, cnv, ctx) {
-  const blob = await fetch(url).then((r) => r.blob());
-  const bmp = await createImageBitmap(blob);
+  const res = await fetch(url);
 
-  cnv.width = bmp.width * SCALE;
-  cnv.height = bmp.height * SCALE;
+  const w = +res.headers.get('X-Width');
+  const h = +res.headers.get('X-Height');
+  const scale = +res.headers.get('X-Scale');
+
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const img = new ImageData(w, h);
+
+  for (let i = 0; i < buf.length; i++) {
+    const v = buf[i];
+    img.data[i * 4 + 0] = v;
+    img.data[i * 4 + 1] = v;
+    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+
+  cnv.width = w * scale;
+  cnv.height = h * scale;
 
   ctx.imageSmoothingEnabled = false;
 
-  ctx.drawImage(bmp, 0, 0);
-  ctx.drawImage(cnv, 0, 0, bmp.width, bmp.height, 0, 0, cnv.width, cnv.height);
+  ctx.putImageData(img, 0, 0);
+  ctx.drawImage(cnv, 0, 0, w, h, 0, 0, cnv.width, cnv.height);
 }
 
 function initSettings() {
