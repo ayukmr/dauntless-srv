@@ -11,7 +11,7 @@
         <link rel="stylesheet" href="https://raven.ayukmr.com/raven.css">
         <link rel="stylesheet" href="styles.css">
 
-        <script src="script.js" defer></script>
+        <script src="src/main.js" type="module" defer></script>
     </head>
 
     <body>
@@ -23,7 +23,7 @@
                 <h3 class="alert message">Disconnected</h3>
             </header>
 
-            <section id="views">
+            <section class="views">
                 <div>
                     <h3><span id="fps"></span> FPS</h3>
                     <canvas id="frame"></canvas>
@@ -35,10 +35,16 @@
                 </div>
             </section>
 
-            <section>
+            <section class="views">
                 <div>
                     <h3>Tags</h3>
-                    <canvas id="top"></canvas>
+                    <canvas id="tags"></canvas>
+                </div>
+
+                <div>
+                    <h3>Detections</h3>
+
+                    <div id="detections"></div>
                 </div>
             </section>
 

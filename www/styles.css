@@ -33,7 +33,11 @@ header.dcnn .alert.message {
   color: red;
 }
 
-#views, #settings {
+.views, #settings {
   display: flex;
   gap: 50px;
+}
+
+#detections {
+  font-family: Menlo, monospace;
 }
