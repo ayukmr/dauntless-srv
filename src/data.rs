@@ -110,9 +110,9 @@ pub fn update(state: &ArcSwap<Data>) {
         {
             let data = Data {
                 fps,
-                tags,
-                frame: Some(frame.into()),
-                mask: Some(mask.into())
+                tags: tags.clone(),
+                frame: Some(frame),
+                mask: Some(mask),
             };
 
             state.store(Arc::new(data));

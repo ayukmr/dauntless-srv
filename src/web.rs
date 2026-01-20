@@ -1,13 +1,11 @@
-use crate::data;
 use crate::consts::CROP;
 use crate::frame::Frame;
 use crate::data::Data;
 
-use arc_swap::ArcSwap;
 use dauntless::{Config, Tag};
 
 use std::sync::Arc;
-use std::thread;
+use arc_swap::ArcSwap;
 
 use rocket::{Build, Rocket, State};
 use rocket::fs::FileServer;
@@ -51,21 +49,7 @@ fn reset_config() -> Json<Config> {
     Json(config)
 }
 
-pub fn build() -> Rocket<Build> {
-    let state = Arc::new(
-        ArcSwap::from_pointee(
-            Data {
-                fps: None,
-                tags: Vec::new(),
-                frame: None,
-                mask: None,
-            },
-        ),
-    );
-
-    let st = Arc::clone(&state);
-    thread::spawn(move || data::update(&st));
-
+pub fn build(state: Arc<ArcSwap<Data>>) -> Rocket<Build> {
     dauntless::set_config(Config {
         fov_rad: 72_f32.to_radians() / CROP,
         harris_k: 0.04,
