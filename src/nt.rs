@@ -11,11 +11,11 @@ use serde::Serialize;
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{client::IntoClientRequest, Message, WebSocket};
 
-const UID1: u64 = 14;
-const UID2: u64 = 8;
+const UID1: u32 = 16;
+const UID2: u32 = 8;
 
-const TYPE1: u64 = 4;
-const TYPE2: u64 = 18;
+const TYPE1: u32 = 4;
+const TYPE2: u32 = 18;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
@@ -34,7 +34,7 @@ impl NT {
         Self { ws }
     }
 
-    fn publish(&mut self, topic: &str, uid: u64, ty: &str) {
+    fn publish(&mut self, topic: &str, uid: u32, ty: &str) {
         let msg = serde_json::json!([{
             "method": "publish",
             "params": {"name": topic, "pubuid": uid, "type": ty, "properties": {}}
@@ -42,7 +42,7 @@ impl NT {
         self.ws.send(Message::Text(msg.to_string().into())).unwrap();
     }
 
-    fn send(&mut self, uid: u64, ty: u64, val: impl Serialize) {
+    fn send(&mut self, uid: u32, ty: u32, val: impl Serialize) {
         let buf = rmp_serde::to_vec(&(uid, 0i64, ty, val)).unwrap();
         self.ws.send(Message::Binary(buf.into())).ok();
     }
