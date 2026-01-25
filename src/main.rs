@@ -8,10 +8,10 @@ use arc_swap::ArcSwap;
 use std::sync::Arc;
 
 mod consts;
-mod frame;
 mod data;
-mod web;
+mod frame;
 mod nt;
+mod web;
 
 #[launch]
 fn rocket() -> _ {
