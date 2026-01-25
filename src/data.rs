@@ -1,18 +1,21 @@
 use crate::consts::{CROP, SCALE};
 use crate::frame::Frame;
 
+use dauntless::Tag;
+
 use std::io;
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Instant;
 
+use colored::Colorize;
+
 use arc_swap::ArcSwap;
 use ndarray::Array2;
 
-use opencv::core::ToInputArray;
 use opencv::{core, imgproc, videoio};
+use opencv::core::ToInputArray;
 use opencv::prelude::*;
-use dauntless::Tag;
 
 pub struct Data {
     pub fps: Option<f32>,
@@ -22,7 +25,14 @@ pub struct Data {
 }
 
 pub fn update(state: &ArcSwap<Data>) {
-    let mut cam = videoio::VideoCapture::new(2, videoio::CAP_ANY).unwrap();
+    let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+
+    let fourcc = videoio::VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap();
+    let _ = cam.set(videoio::CAP_PROP_FOURCC, fourcc as f64);
+
+    let _ = cam.set(videoio::CAP_PROP_FRAME_WIDTH, 640.0);
+    let _ = cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 480.0);
+    let _ = cam.set(videoio::CAP_PROP_FPS, 120.0);
 
     let mut last = Instant::now();
     let mut fps = None;
@@ -52,7 +62,7 @@ pub fn update(state: &ArcSwap<Data>) {
         }
 
         if tick % 10 == 0 {
-            print!("\r{} fps", fps.unwrap() as i32);
+            print!("\rfps: {}", (fps.unwrap() as i32).to_string().yellow());
             io::stdout().flush().unwrap();
         }
         tick += 1;

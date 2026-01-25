@@ -1,5 +1,5 @@
 function color(c, id) {
-  return `${c}${id === null ? '55' : 'ff'}`;
+  return `${c}${id === null ? '22' : 'ff'}`;
 }
 
 function point(ctx, x, y, color) {
@@ -25,9 +25,9 @@ function rect(ctx, x, y, w, h, color) {
 }
 
 
-function text(ctx, text, x, y) {
-  ctx.font = '14px Menlo';
-  ctx.fillStyle = '#ff0000';
+function text(ctx, text, x, y, color) {
+  ctx.font = '20px Cosm';
+  ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 

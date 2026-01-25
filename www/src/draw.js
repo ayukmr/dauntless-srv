@@ -47,7 +47,7 @@ function drawFrame(tags) {
     line(fCtx, bl, tl, clr);
 
     if (id !== null) {
-      text(fCtx, id, x, y);
+      text(fCtx, id, x, y, '#ff0000');
     }
   }
 }
@@ -91,7 +91,7 @@ function drawTags(tags) {
     line(tCtx, p0, p1, '#0000ff');
     line(tCtx, [w/2, h - 25], [x, y], '#ff0000');
 
-    text(tCtx, `${id}@${Math.round(rot * 180/Math.PI)}°`, x, y);
+    text(tCtx, id, x, y, '#00ff00');
   }
 }
 

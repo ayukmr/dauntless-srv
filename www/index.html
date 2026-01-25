@@ -19,11 +19,13 @@
             <header>
                 <img src="header.svg"></img>
 
-                <h3 class="alert">&middot;</h3>
-                <h3 class="alert message">Disconnected</h3>
+                <div class="alert">
+                    <h3>&middot;</h3>
+                    <h3 class="message">Disconnected</h3>
+                </div>
             </header>
 
-            <section class="views">
+            <section>
                 <div>
                     <h3><span id="fps"></span> FPS</h3>
                     <canvas id="frame"></canvas>
@@ -35,7 +37,7 @@
                 </div>
             </section>
 
-            <section class="views">
+            <section>
                 <div>
                     <h3>Tags</h3>
                     <canvas id="tags"></canvas>
@@ -48,30 +50,26 @@
                 </div>
             </section>
 
-            <section>
-                <h2>Settings</h2>
+            <section id="settings">
+                <div>
+                    <label>Harris K</label>
+                    <input type="number" name="harris_k"></input>
 
-                <div id="settings">
-                    <div>
-                        <label>Harris K</label>
-                        <input type="number" name="harris_k"></input>
+                    <label>Harris Thresh</label>
+                    <input type="number" name="harris_thresh"></input>
+                </div>
 
-                        <label>Harris Thresh</label>
-                        <input type="number" name="harris_thresh"></input>
-                    </div>
+                <div>
+                    <label>Hysteresis Low</label>
+                    <input type="number" name="hyst_low"></input>
 
-                    <div>
-                        <label>Hysteresis Low</label>
-                        <input type="number" name="hyst_low"></input>
+                    <label>Hysteresis High</label>
+                    <input type="number" name="hyst_high"></input>
+                </div>
 
-                        <label>Hysteresis High</label>
-                        <input type="number" name="hyst_high"></input>
-                    </div>
-
-                    <div>
-                        <label>Defaults</label>
-                        <button id="reset">Reset</button>
-                    </div>
+                <div>
+                    <label>Defaults</label>
+                    <button id="reset">Reset</button>
                 </div>
             </section>
         </main>

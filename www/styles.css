@@ -1,20 +1,38 @@
-canvas {
-  background: #000000;
+@font-face {
+  font-family: Cosm;
+  src: url('/Cosm.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+html {
+  font-family: 'Cosm', 'Helvetica Neue', sans-serif;
+  font-size: 1.05em;
+}
+
+main {
+  margin: 50px auto !important;
+}
+
+section {
+  display: flex;
+  gap: 50px;
 }
 
 header {
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 30px;
+}
+
+header h3 {
+  display: inline;
+  margin: 0;
 }
 
 header img {
-  height: 100px;
+  height: 75px;
   margin-inline: -30px;
-}
-
-#fps {
-  font-variant-numeric: tabular-nums;
 }
 
 header .alert {
@@ -26,18 +44,19 @@ header.dcnn img {
 }
 
 header.dcnn .alert {
-  display: block;
+  display: flex;
+  gap: 20px;
 }
 
-header.dcnn .alert.message {
+header.dcnn .alert .message {
   color: red;
 }
 
-.views, #settings {
-  display: flex;
-  gap: 50px;
+h3 {
+  margin-top: 0;
 }
 
-#detections {
-  font-family: Menlo, monospace;
+#fps {
+  display: inline-block;
+  width: 54.45px;
 }
