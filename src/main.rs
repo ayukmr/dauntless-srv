@@ -3,6 +3,7 @@
 use crate::data::Data;
 
 use std::thread;
+use std::time::SystemTime;
 
 use arc_swap::ArcSwap;
 use std::sync::Arc;
@@ -22,6 +23,7 @@ fn rocket() -> _ {
                 tags: Vec::new(),
                 frame: None,
                 mask: None,
+                time: SystemTime::now(),
             },
         ),
     );

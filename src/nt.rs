@@ -2,9 +2,11 @@ use crate::Data;
 
 use dauntless::Tag;
 
+use anyhow::Result;
+
 use std::thread;
 use std::net::TcpStream;
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use std::sync::Arc;
 use arc_swap::ArcSwap;
@@ -13,15 +15,17 @@ use colored::Colorize;
 
 use serde::Serialize;
 
-use tungstenite::{Message, Result, WebSocket};
+use tungstenite::{Message, WebSocket};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::client::IntoClientRequest;
 
 const UID1: u32 = 16;
 const UID2: u32 = 8;
+const UID3: u32 = 4;
 
 const TYPE1: u32 = 4;
 const TYPE2: u32 = 18;
+const TYPE3: u32 = 2;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
@@ -90,6 +94,7 @@ fn init() -> Result<NT> {
 
     nt.publish("/dauntless/tags", UID1, "json")?;
     nt.publish("/dauntless/ids", UID2, "int[]")?;
+    nt.publish("/dauntless/time", UID3, "int")?;
 
     Ok(nt)
 }
@@ -104,6 +109,7 @@ fn tick(nt: &mut NT, state: &Arc<ArcSwap<Data>>) -> Result<()> {
 
     nt.send(UID1, TYPE1, json)?;
     nt.send(UID2, TYPE2, ids)?;
+    nt.send(UID3, TYPE3, st.time.duration_since(UNIX_EPOCH)?.as_secs())?;
 
     Ok(())
 }

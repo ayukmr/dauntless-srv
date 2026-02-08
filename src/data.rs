@@ -6,7 +6,7 @@ use dauntless::Tag;
 use std::io;
 use std::io::Write;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use colored::Colorize;
 
@@ -22,6 +22,7 @@ pub struct Data {
     pub tags: Vec<Tag>,
     pub frame: Option<Frame>,
     pub mask: Option<Frame>,
+    pub time: SystemTime,
 }
 
 pub fn update(state: &ArcSwap<Data>) {
@@ -123,6 +124,7 @@ pub fn update(state: &ArcSwap<Data>) {
                 tags: tags.clone(),
                 frame: Some(frame),
                 mask: Some(mask),
+                time: SystemTime::now(),
             };
 
             state.store(Arc::new(data));
