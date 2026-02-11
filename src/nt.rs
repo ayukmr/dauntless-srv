@@ -19,13 +19,15 @@ use tungstenite::{Message, WebSocket};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::client::IntoClientRequest;
 
+const HOST: &str = "ws://10.49.4.2:5810/nt/dauntless";
+
 const UID1: u32 = 16;
 const UID2: u32 = 8;
 const UID3: u32 = 4;
 
 const TYPE1: u32 = 4;
 const TYPE2: u32 = 18;
-const TYPE3: u32 = 2;
+const TYPE3: u32 = 1;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
@@ -33,7 +35,7 @@ struct NT {
 
 impl NT {
     fn new() -> Result<Self> {
-        let mut req = "ws://127.0.0.1:5810/nt/dauntless".into_client_request().unwrap();
+        let mut req = HOST.into_client_request().unwrap();
         req.headers_mut().insert(
             "Sec-WebSocket-Protocol",
             "v4.1.networktables.first.wpi.edu".parse().unwrap(),
@@ -94,7 +96,7 @@ fn init() -> Result<NT> {
 
     nt.publish("/dauntless/tags", UID1, "json")?;
     nt.publish("/dauntless/ids", UID2, "int[]")?;
-    nt.publish("/dauntless/time", UID3, "int")?;
+    nt.publish("/dauntless/time", UID3, "double")?;
 
     Ok(nt)
 }
@@ -109,7 +111,7 @@ fn tick(nt: &mut NT, state: &Arc<ArcSwap<Data>>) -> Result<()> {
 
     nt.send(UID1, TYPE1, json)?;
     nt.send(UID2, TYPE2, ids)?;
-    nt.send(UID3, TYPE3, st.time.duration_since(UNIX_EPOCH)?.as_secs())?;
+    nt.send(UID3, TYPE3, st.time.duration_since(UNIX_EPOCH)?.as_millis() as f32 / 1000.0)?;
 
     Ok(())
 }

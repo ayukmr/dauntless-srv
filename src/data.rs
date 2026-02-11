@@ -87,7 +87,7 @@ pub fn update(state: &ArcSwap<Data>) {
         let roi = core::Rect::new(x, y, cw, ch);
         let cropped = Mat::roi(&light, roi).unwrap();
 
-        let resized = resize(&cropped, 400);
+        let resized = resize(&cropped, 640);
 
         let sw = resized.cols();
         let sh = resized.rows();
@@ -115,13 +115,13 @@ pub fn update(state: &ArcSwap<Data>) {
                 .unwrap()
                 .clone_pointee();
 
-        let frame = Frame::encode(&resize(&resized, 400 / SCALE));
-        let mask = Frame::encode(&resize(&mat, 400 / SCALE));
+        let frame = Frame::encode(&resize(&resized, 640 / SCALE));
+        let mask = Frame::encode(&resize(&mat, 640 / SCALE));
 
         {
             let data = Data {
                 fps,
-                tags: tags.clone(),
+                tags,
                 frame: Some(frame),
                 mask: Some(mask),
                 time: SystemTime::now(),
@@ -132,10 +132,7 @@ pub fn update(state: &ArcSwap<Data>) {
     }
 }
 
-fn resize<T>(img: &T, max: i32) -> Mat
-where
-    T: MatTraitConst + ToInputArray,
-{
+fn resize(img: &(MatTraitConst + ToInputArray), max: i32) -> Mat {
     let w = img.cols();
     let h = img.rows();
 

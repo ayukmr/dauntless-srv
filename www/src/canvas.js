@@ -1,5 +1,5 @@
 function color(c, id) {
-  return `${c}${id === null ? '22' : 'ff'}`;
+  return `${c}${id === null ? '33' : 'ff'}`;
 }
 
 function point(ctx, x, y, color) {

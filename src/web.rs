@@ -25,7 +25,6 @@ pub fn build(state: Arc<ArcSwap<Data>>) -> Rocket<Build> {
         harris_thresh: 0.001,
         hyst_low: 0.1,
         hyst_high: 0.2,
-        filter_enclosed: false,
         ..Config::default()
     });
 
