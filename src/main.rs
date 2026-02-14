@@ -1,12 +1,16 @@
 #[macro_use] extern crate rocket;
 
-use crate::data::Data;
+use crate::data::{Data, St};
+use crate::consts::CROP;
+
+use dauntless::{Config, Detector};
 
 use std::thread;
 use std::time::SystemTime;
 
-use arc_swap::ArcSwap;
 use std::sync::Arc;
+
+const FOV: f32 = 48_f32;
 
 mod consts;
 mod data;
@@ -16,17 +20,28 @@ mod web;
 
 #[launch]
 fn rocket() -> _ {
-    let state = Arc::new(
-        ArcSwap::from_pointee(
-            Data {
-                fps: None,
-                tags: Vec::new(),
-                frame: None,
-                mask: None,
-                time: SystemTime::now(),
-            },
-        ),
+    let fov = 2.0 * ((FOV.to_radians() * 0.5).tan() / CROP).atan();
+
+    let detector = Detector::new(
+        Config {
+            fov_rad: fov,
+            harris_k: 0.04,
+            harris_thresh: 0.001,
+            hyst_low: 0.1,
+            hyst_high: 0.2,
+            ..Config::default()
+        },
     );
+
+    let data = Data {
+        fps: None,
+        tags: Vec::new(),
+        frame: None,
+        mask: None,
+        time: SystemTime::now(),
+    };
+
+    let state = Arc::new(St::new(detector, data));
 
     let st = Arc::clone(&state);
     thread::spawn(move || data::update(&st));

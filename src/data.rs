@@ -1,16 +1,15 @@
 use crate::consts::{CROP, SCALE};
 use crate::frame::Frame;
 
-use dauntless::Tag;
+use dauntless::{Detector, Tag};
 
 use std::io;
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Instant, SystemTime};
 
 use colored::Colorize;
 
-use arc_swap::ArcSwap;
 use ndarray::Array2;
 
 use opencv::{core, imgproc, videoio};
@@ -25,7 +24,37 @@ pub struct Data {
     pub time: SystemTime,
 }
 
-pub fn update(state: &ArcSwap<Data>) {
+pub struct St {
+    pub detector: RwLock<Detector>,
+    pub data: RwLock<Data>,
+}
+
+impl St {
+    pub fn new(detector: Detector, data: Data) -> Self {
+        Self {
+            detector: RwLock::new(detector),
+            data: RwLock::new(data),
+        }
+    }
+
+    pub fn detector(&self) -> RwLockReadGuard<'_, Detector> {
+        self.detector.read().unwrap()
+    }
+
+    pub fn detector_wr(&self) -> RwLockWriteGuard<'_, Detector> {
+        self.detector.write().unwrap()
+    }
+
+    pub fn data(&self) -> RwLockReadGuard<'_, Data> {
+        self.data.read().unwrap()
+    }
+
+    pub fn data_wr(&self) -> RwLockWriteGuard<'_, Data> {
+        self.data.write().unwrap()
+    }
+}
+
+pub fn update(state: &Arc<St>) {
     let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
 
     let fourcc = videoio::VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap();
@@ -100,7 +129,7 @@ pub fn update(state: &ArcSwap<Data>) {
             .unwrap()
             .mapv(|l| l as f32 / 255.0);
 
-        let (mask, tags) = dauntless::tags2(&data);
+        let (mask, tags) = state.detector().process(&data);
 
         let vals = mask.mapv(|b| if b { 255u8 } else { 0u8 });
         let std = vals.as_standard_layout();
@@ -119,7 +148,7 @@ pub fn update(state: &ArcSwap<Data>) {
         let mask = Frame::encode(&resize(&mat, 640 / SCALE));
 
         {
-            let data = Data {
+            let update = Data {
                 fps,
                 tags,
                 frame: Some(frame),
@@ -127,12 +156,12 @@ pub fn update(state: &ArcSwap<Data>) {
                 time: SystemTime::now(),
             };
 
-            state.store(Arc::new(data));
+            *state.data_wr() = update;
         }
     }
 }
 
-fn resize(img: &(MatTraitConst + ToInputArray), max: i32) -> Mat {
+fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32) -> Mat {
     let w = img.cols();
     let h = img.rows();
 

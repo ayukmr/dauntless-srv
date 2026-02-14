@@ -1,11 +1,9 @@
-use crate::consts::CROP;
 use crate::frame::Frame;
-use crate::data::Data;
+use crate::data::St;
 
 use dauntless::{Config, Tag};
 
 use std::sync::Arc;
-use arc_swap::ArcSwap;
 
 use colored::Colorize;
 
@@ -14,20 +12,7 @@ use rocket::fs::FileServer;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 
-const FOV: f32 = 48_f32;
-
-pub fn build(state: Arc<ArcSwap<Data>>) -> Rocket<Build> {
-    let fov = 2.0 * ((FOV.to_radians() * 0.5).tan() / CROP).atan();
-
-    dauntless::set_config(Config {
-        fov_rad: fov,
-        harris_k: 0.04,
-        harris_thresh: 0.001,
-        hyst_low: 0.1,
-        hyst_high: 0.2,
-        ..Config::default()
-    });
-
+pub fn build(state: Arc<St>) -> Rocket<Build> {
     rocket::build()
         .manage(state)
         .attach(AdHoc::on_liftoff(
@@ -56,39 +41,39 @@ fn not_found(req: &Request<'_>) -> String {
 }
 
 #[get("/fps")]
-fn fps(state: &State<Arc<ArcSwap<Data>>>) -> Json<Option<f32>> {
-    Json(state.load().fps)
+fn fps(state: &State<Arc<St>>) -> Json<Option<f32>> {
+    Json(state.data().fps)
 }
 
 #[get("/tags")]
-fn tags(state: &State<Arc<ArcSwap<Data>>>) -> Json<Vec<Tag>> {
-    Json(state.load().tags.clone())
+fn tags(state: &State<Arc<St>>) -> Json<Vec<Tag>> {
+    Json(state.data().tags.clone())
 }
 
 #[get("/frame")]
-fn frame(state: &State<Arc<ArcSwap<Data>>>) -> Option<Frame> {
-    state.load().frame.clone()
+fn frame(state: &State<Arc<St>>) -> Option<Frame> {
+    state.data().frame.clone()
 }
 
 #[get("/mask")]
-fn mask(state: &State<Arc<ArcSwap<Data>>>) -> Option<Frame> {
-    state.load().mask.clone()
+fn mask(state: &State<Arc<St>>) -> Option<Frame> {
+    state.data().mask.clone()
 }
 
 #[get("/config")]
-fn get_config() -> Json<Config> {
-    Json(dauntless::get_config())
+fn get_config(state: &State<Arc<St>>) -> Json<Config> {
+    Json(state.detector().get_config())
 }
 
 #[post("/config", data = "<config>")]
-fn set_config(config: Json<Config>) {
-    dauntless::set_config(*config);
+fn set_config(state: &State<Arc<St>>, config: Json<Config>) {
+    state.detector_wr().set_config(*config);
 }
 
 #[post("/config/reset")]
-fn reset_config() -> Json<Config> {
+fn reset_config(state: &State<Arc<St>>) -> Json<Config> {
     let config = Config::default();
 
-    dauntless::set_config(config);
+    state.detector_wr().set_config(config);
     Json(config)
 }

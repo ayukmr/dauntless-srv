@@ -1,4 +1,4 @@
-use crate::Data;
+use crate::data::St;
 
 use dauntless::Tag;
 
@@ -9,7 +9,6 @@ use std::net::TcpStream;
 use std::time::{Duration, UNIX_EPOCH};
 
 use std::sync::Arc;
-use arc_swap::ArcSwap;
 
 use colored::Colorize;
 
@@ -67,7 +66,7 @@ impl NT {
     }
 }
 
-pub fn run(state: &Arc<ArcSwap<Data>>) {
+pub fn run(state: &Arc<St>) {
     loop {
         let mut nt = loop {
             match init() {
@@ -101,17 +100,17 @@ fn init() -> Result<NT> {
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, state: &Arc<ArcSwap<Data>>) -> Result<()> {
-    let st = state.load();
+fn tick(nt: &mut NT, state: &Arc<St>) -> Result<()> {
+    let data = state.data();
 
     let (tags, ids): (Vec<&Tag>, Vec<u32>) =
-        st.tags.iter().filter_map(|t| t.id.map(|id| (t, id))).unzip();
+        data.tags.iter().filter_map(|t| t.id.map(|id| (t, id))).unzip();
 
     let json = serde_json::to_string(&tags).unwrap();
 
     nt.send(UID1, TYPE1, json)?;
     nt.send(UID2, TYPE2, ids)?;
-    nt.send(UID3, TYPE3, st.time.duration_since(UNIX_EPOCH)?.as_millis() as f32 / 1000.0)?;
+    nt.send(UID3, TYPE3, data.time.duration_since(UNIX_EPOCH)?.as_millis() as f32 / 1000.0)?;
 
     Ok(())
 }
