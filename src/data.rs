@@ -16,17 +16,17 @@ use opencv::{core, imgproc, videoio};
 use opencv::core::ToInputArray;
 use opencv::prelude::*;
 
+pub struct St {
+    pub detector: RwLock<Detector>,
+    pub data: RwLock<Data>,
+}
+
 pub struct Data {
     pub fps: Option<f32>,
     pub tags: Vec<Tag>,
     pub frame: Option<Frame>,
     pub mask: Option<Frame>,
     pub time: SystemTime,
-}
-
-pub struct St {
-    pub detector: RwLock<Detector>,
-    pub data: RwLock<Data>,
 }
 
 impl St {
@@ -129,7 +129,7 @@ pub fn update(state: &Arc<St>) {
             .unwrap()
             .mapv(|l| l as f32 / 255.0);
 
-        let (mask, tags) = state.detector().process(&data);
+        let (mask, tags) = state.detector_wr().process(&data);
 
         let vals = mask.mapv(|b| if b { 255u8 } else { 0u8 });
         let std = vals.as_standard_layout();
