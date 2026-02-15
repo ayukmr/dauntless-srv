@@ -34,7 +34,7 @@ fn rocket() -> _ {
     );
 
     let data = Data {
-        fps: None,
+        ms: None,
         tags: Vec::new(),
         frame: None,
         mask: None,

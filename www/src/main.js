@@ -6,16 +6,16 @@ const fCnv = query('#frame');
 const fCtx = fCnv.getContext('2d');
 const mCnv = query('#mask');
 const mCtx = mCnv.getContext('2d');
-const fps = query('#fps');
+const ms = query('#ms');
 
 let tags = null;
 const errs = { frame: false, mask: false, tags: false };
 
 function update() {
-  fetch('/api/fps')
+  fetch('/api/ms')
     .then((res) => res.json())
     .then((f) => {
-      fps.innerText = f.toFixed(2);
+      ms.innerText = f.toFixed(2);
     });
 
   fetchDraw('/api/frame', fCnv, fCtx)

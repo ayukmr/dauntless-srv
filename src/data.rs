@@ -10,8 +10,6 @@ use std::time::{Instant, SystemTime};
 
 use colored::Colorize;
 
-use ndarray::Array2;
-
 use opencv::{core, imgproc, videoio};
 use opencv::core::ToInputArray;
 use opencv::prelude::*;
@@ -22,7 +20,7 @@ pub struct St {
 }
 
 pub struct Data {
-    pub fps: Option<f32>,
+    pub ms: Option<f32>,
     pub tags: Vec<Tag>,
     pub frame: Option<Frame>,
     pub mask: Option<Frame>,
@@ -64,12 +62,17 @@ pub fn update(state: &Arc<St>) {
     let _ = cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 480.0);
     let _ = cam.set(videoio::CAP_PROP_FPS, 120.0);
 
-    let mut last = Instant::now();
-    let mut fps = None;
     let mut tick = 0;
 
     let mut frame = Mat::default();
     let mut light = Mat::default();
+
+    let mut mat = None;
+    let mut data = None;
+
+    let mut rsz = Mat::default();
+    let mut frsz = Mat::default();
+    let mut mrsz = Mat::default();
 
     loop {
         cam.read(&mut frame).unwrap();
@@ -78,24 +81,7 @@ pub fn update(state: &Arc<St>) {
             continue;
         }
 
-        let now = Instant::now();
-        let dt = now.duration_since(last).as_secs_f32();
-
-        last = now;
-
-        if dt > 0.0 {
-            if let Some(last) = fps {
-                fps = Some(0.9 * last + 0.1 * (1.0 / dt));
-            } else {
-                fps = Some(1.0 / dt);
-            }
-        }
-
-        if tick % 10 == 0 {
-            print!("\rfps: {}", (fps.unwrap() as i32).to_string().yellow());
-            io::stdout().flush().unwrap();
-        }
-        tick += 1;
+        let start = Instant::now();
 
         imgproc::cvt_color(
             &frame,
@@ -116,41 +102,55 @@ pub fn update(state: &Arc<St>) {
         let roi = core::Rect::new(x, y, cw, ch);
         let cropped = Mat::roi(&light, roi).unwrap();
 
-        let resized = resize(&cropped, 640);
+        resize(&cropped, 640, &mut rsz);
 
-        let sw = resized.cols();
-        let sh = resized.rows();
+        let sw = rsz.cols();
+        let sh = rsz.rows();
 
-        let data =
-            Array2::from_shape_vec(
-                (sh as usize, sw as usize),
-                resized.data_bytes().unwrap().to_vec(),
-            )
-            .unwrap()
-            .mapv(|l| l as f32 / 255.0);
+        let bytes = rsz.data_bytes().unwrap();
 
-        let (mask, tags) = state.detector_wr().process(&data);
+        let data = data.get_or_insert_with(|| {
+            vec![0.0f32; (sw * sh) as usize]
+        });
 
-        let vals = mask.mapv(|b| if b { 255u8 } else { 0u8 });
-        let std = vals.as_standard_layout();
-        let slice = std.as_slice().unwrap();
+        for i in 0..data.len() {
+            data[i] = bytes[i] as f32 / 255.0;
+        }
 
-        let h = mask.dim().0;
+        let (mask, tags) = state.detector_wr().process(sw as usize, sh as usize, &data);
 
-        let mat =
-            Mat::from_slice(slice)
-                .unwrap()
-                .reshape(1, h as i32)
-                .unwrap()
-                .clone_pointee();
+        let now = Instant::now();
+        let ms = now.duration_since(start).as_secs_f32() * 1000.0;
 
-        let frame = Frame::encode(&resize(&resized, 640 / SCALE));
-        let mask = Frame::encode(&resize(&mat, 640 / SCALE));
+        if tick % 10 == 0 {
+            print!(
+                "\rms: {} | fps: {}",
+                format!("{:.2}", ms).to_string().yellow(),
+                format!("{}", (1000.0 / ms) as i32).to_string().yellow(),
+            );
+            io::stdout().flush().unwrap();
+        }
+        tick += 1;
+
+        let mat = mat.get_or_insert_with(|| {
+            Mat::zeros(h, w, core::CV_8UC1).unwrap().to_mat().unwrap()
+        });
+        let mts = mat.data_bytes_mut().unwrap();
+
+        for i in 0..mask.len() {
+            mts[i] = mask[i] * 255;
+        }
+
+        resize(&rsz, 640 / SCALE, &mut frsz);
+        resize(mat, 640 / SCALE, &mut mrsz);
+
+        let frame = Frame::encode(&frsz);
+        let mask = Frame::encode(&mrsz);
 
         {
             let update = Data {
-                fps,
                 tags,
+                ms: Some(ms),
                 frame: Some(frame),
                 mask: Some(mask),
                 time: SystemTime::now(),
@@ -161,11 +161,9 @@ pub fn update(state: &Arc<St>) {
     }
 }
 
-fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32) -> Mat {
+fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32, out: &mut Mat)  {
     let w = img.cols();
     let h = img.rows();
-
-    let mut resized = Mat::default();
 
     let scale = max as f32 / i32::max(w, h) as f32;
     let sw = (w as f32 * scale) as i32;
@@ -173,12 +171,10 @@ fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32) -> Mat {
 
     imgproc::resize(
         img,
-        &mut resized,
+        out,
         core::Size::new(sw, sh),
         0.0,
         0.0,
-        imgproc::INTER_AREA,
+        imgproc::INTER_LINEAR,
     ).unwrap();
-
-    resized
 }

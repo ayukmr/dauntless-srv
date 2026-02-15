@@ -24,7 +24,7 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
         .register("/", catchers![not_found])
         .mount("/", FileServer::from("./www"))
         .mount("/api", routes![
-            fps,
+            ms,
             tags,
             frame,
             mask,
@@ -40,9 +40,9 @@ fn not_found(req: &Request<'_>) -> String {
     format!("no such route: {}", req.uri())
 }
 
-#[get("/fps")]
-fn fps(state: &State<Arc<St>>) -> Json<Option<f32>> {
-    Json(state.data().fps)
+#[get("/ms")]
+fn ms(state: &State<Arc<St>>) -> Json<Option<f32>> {
+    Json(state.data().ms)
 }
 
 #[get("/tags")]

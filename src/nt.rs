@@ -110,7 +110,7 @@ fn tick(nt: &mut NT, state: &Arc<St>) -> Result<()> {
 
     nt.send(UID1, TYPE1, json)?;
     nt.send(UID2, TYPE2, ids)?;
-    nt.send(UID3, TYPE3, data.time.duration_since(UNIX_EPOCH)?.as_millis() as f32 / 1000.0)?;
+    nt.send(UID3, TYPE3, data.time.duration_since(UNIX_EPOCH)?.as_secs_f64())?;
 
     Ok(())
 }
