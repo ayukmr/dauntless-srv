@@ -133,7 +133,7 @@ pub fn update(state: &Arc<St>) {
         tick += 1;
 
         let mat = mat.get_or_insert_with(|| {
-            Mat::zeros(h, w, core::CV_8UC1).unwrap().to_mat().unwrap()
+            Mat::zeros(sh, sw, core::CV_8UC1).unwrap().to_mat().unwrap()
         });
         let mts = mat.data_bytes_mut().unwrap();
 
