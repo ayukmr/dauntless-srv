@@ -1,4 +1,4 @@
-use crate::consts::SCALE;
+use crate::consts::{self, SCALE};
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -37,7 +37,7 @@ impl<'r> Responder<'r, 'static> for Frame {
             .header(ContentType::Binary)
             .raw_header("X-Width", self.width.to_string())
             .raw_header("X-Height", self.height.to_string())
-            .raw_header("X-Scale", SCALE.to_string())
+            .raw_header("X-Scale", SCALE.get_or_init(|| consts::cfg().scale).to_string())
             .sized_body(self.data.len(), Cursor::new(Arc::clone(&self.data)))
             .ok()
     }

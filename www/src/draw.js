@@ -3,8 +3,11 @@ import { color, point, line, rect, text } from './canvas.js';
 
 const fCnv = query('#frame');
 const fCtx = fCnv.getContext('2d');
-const mCnv = query('#mask');
-const mCtx = mCnv.getContext('2d');
+
+const eCnv = query('#edges');
+const eCtx = eCnv.getContext('2d');
+const cCnv = query('#corners');
+const cCtx = cCnv.getContext('2d');
 
 const tCnv = query('#tags');
 const tCtx = tCnv.getContext('2d');
@@ -17,12 +20,12 @@ function draw(getTags, errs) {
 
   if (tags !== null) {
     drawFrame(tags);
-    drawMask(tags);
+    drawMasks(tags);
     drawTags(tags);
     listDetections(tags);
   }
 
-  header.classList.toggle('dcnn', errs.frame || errs.mask || errs.tags);
+  header.classList.toggle('dcnn', Object.values(errs).some(Boolean));
 
   requestAnimationFrame(() => draw(getTags, errs));
 }
@@ -52,21 +55,22 @@ function drawFrame(tags) {
   }
 }
 
-function drawMask(tags) {
+function drawMasks(tags) {
   for (const tag of tags) {
     const { id, corners } = tag;
 
     const clr = color('#ff0000', id);
 
     for (const corner of corners) {
-      point(mCtx, corner[0], corner[1], clr);
+      point(eCtx, corner[0], corner[1], clr);
+      point(cCtx, corner[0], corner[1], clr);
     }
   }
 }
 
 function drawTags(tags) {
-  tCnv.width = fCnv.height;
-  tCnv.height = fCnv.height;
+  tCnv.width = 600;
+  tCnv.height = 600;
 
   const w = tCnv.width;
   const h = tCnv.height;
@@ -82,8 +86,8 @@ function drawTags(tags) {
     const x = w/2 + pos[0] * 100;
     const y = h - 25 - pos[2] * 100;
 
-    const dx = Math.cos(-rot) * 50;
-    const dy = Math.sin(-rot) * 50;
+    const dx = Math.cos(rot) * 75;
+    const dy = Math.sin(rot) * 75;
 
     const p0 = [x - dx/2, y - dy/2];
     const p1 = [x + dx/2, y + dy/2];
@@ -97,6 +101,8 @@ function drawTags(tags) {
 
 function listDetections(tags) {
   detections.innerText = '';
+
+  tags.sort((a, b) => a.id > b.id);
 
   tags
     .filter((tag) => tag.id !== null)
@@ -120,7 +126,7 @@ function listDetections(tags) {
     });
 }
 
-async function fetchDraw(url, cnv, ctx) {
+async function fetchDraw(url, cnv, ctx, red = false) {
   const res = await fetch(url);
 
   const w = +res.headers.get('X-Width');
@@ -133,8 +139,8 @@ async function fetchDraw(url, cnv, ctx) {
   for (let i = 0; i < buf.length; i++) {
     const v = buf[i];
     img.data[i * 4 + 0] = v;
-    img.data[i * 4 + 1] = v;
-    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 1] = red ? 0 : v;
+    img.data[i * 4 + 2] = red ? 0 : v;
     img.data[i * 4 + 3] = 255;
   }
 

@@ -5,13 +5,13 @@ function color(c, id) {
 function point(ctx, x, y, color) {
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
   ctx.fill();
 }
 
 function line(ctx, p0, p1, color) {
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 8;
 
   ctx.beginPath();
   ctx.moveTo(p0[0], p0[1]);
@@ -26,7 +26,7 @@ function rect(ctx, x, y, w, h, color) {
 
 
 function text(ctx, text, x, y, color) {
-  ctx.font = '20px Cosm';
+  ctx.font = '35px Cosm';
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

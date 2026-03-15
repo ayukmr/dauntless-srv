@@ -2,6 +2,7 @@ use crate::frame::Frame;
 use crate::data::St;
 
 use dauntless::{Config, Tag};
+use serde::Serialize;
 
 use std::sync::Arc;
 
@@ -24,10 +25,10 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
         .register("/", catchers![not_found])
         .mount("/", FileServer::from("./www"))
         .mount("/api", routes![
-            ms,
-            tags,
+            data,
             frame,
-            mask,
+            edges,
+            corners,
             get_config,
             set_config,
             reset_config,
@@ -40,14 +41,16 @@ fn not_found(req: &Request<'_>) -> String {
     format!("no such route: {}", req.uri())
 }
 
-#[get("/ms")]
-fn ms(state: &State<Arc<St>>) -> Json<Option<f32>> {
-    Json(state.data().ms)
+#[derive(Serialize)]
+struct Sent {
+    ms: Option<f32>,
+    tags: Vec<Tag>,
 }
 
-#[get("/tags")]
-fn tags(state: &State<Arc<St>>) -> Json<Vec<Tag>> {
-    Json(state.data().tags.clone())
+#[get("/data")]
+fn data(state: &State<Arc<St>>) -> Json<Sent> {
+    let data = state.data();
+    Json(Sent { ms: data.ms, tags: data.tags.clone() })
 }
 
 #[get("/frame")]
@@ -55,9 +58,14 @@ fn frame(state: &State<Arc<St>>) -> Option<Frame> {
     state.data().frame.clone()
 }
 
-#[get("/mask")]
-fn mask(state: &State<Arc<St>>) -> Option<Frame> {
-    state.data().mask.clone()
+#[get("/edges")]
+fn edges(state: &State<Arc<St>>) -> Option<Frame> {
+    state.data().edges.clone()
+}
+
+#[get("/corners")]
+fn corners(state: &State<Arc<St>>) -> Option<Frame> {
+    state.data().corners.clone()
 }
 
 #[get("/config")]

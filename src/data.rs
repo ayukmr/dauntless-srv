@@ -1,4 +1,4 @@
-use crate::consts::{CROP, SCALE};
+use crate::consts::{self, CAMERA, HEIGHT, SCALE, WIDTH};
 use crate::frame::Frame;
 
 use dauntless::{Detector, Tag};
@@ -23,15 +23,29 @@ pub struct Data {
     pub ms: Option<f32>,
     pub tags: Vec<Tag>,
     pub frame: Option<Frame>,
-    pub mask: Option<Frame>,
+    pub edges: Option<Frame>,
+    pub corners: Option<Frame>,
     pub time: SystemTime,
 }
 
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            ms: None,
+            tags: Vec::new(),
+            frame: None,
+            edges: None,
+            corners: None,
+            time: SystemTime::now(),
+        }
+    }
+}
+
 impl St {
-    pub fn new(detector: Detector, data: Data) -> Self {
+    pub fn new(detector: Detector) -> Self {
         Self {
             detector: RwLock::new(detector),
-            data: RwLock::new(data),
+            data: RwLock::new(Data::default()),
         }
     }
 
@@ -53,13 +67,22 @@ impl St {
 }
 
 pub fn update(state: &Arc<St>) {
-    let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+    let mut cam = videoio::VideoCapture::new(
+        *CAMERA.get_or_init(|| consts::cfg().camera),
+        videoio::CAP_ANY,
+    ).unwrap();
 
     let fourcc = videoio::VideoWriter::fourcc('M', 'J', 'P', 'G').unwrap();
     let _ = cam.set(videoio::CAP_PROP_FOURCC, fourcc as f64);
 
-    let _ = cam.set(videoio::CAP_PROP_FRAME_WIDTH, 640.0);
-    let _ = cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 480.0);
+    let _ = cam.set(
+        videoio::CAP_PROP_FRAME_WIDTH,
+        *WIDTH.get_or_init(|| consts::cfg().width),
+    );
+    let _ = cam.set(
+        videoio::CAP_PROP_FRAME_HEIGHT,
+        *HEIGHT.get_or_init(|| consts::cfg().height),
+    );
     let _ = cam.set(videoio::CAP_PROP_FPS, 120.0);
 
     let mut tick = 0;
@@ -71,8 +94,6 @@ pub fn update(state: &Arc<St>) {
     let mut data = None;
 
     let mut rsz = Mat::default();
-    let mut frsz = Mat::default();
-    let mut mrsz = Mat::default();
 
     loop {
         cam.read(&mut frame).unwrap();
@@ -94,30 +115,17 @@ pub fn update(state: &Arc<St>) {
         let w = light.cols();
         let h = light.rows();
 
-        let cw = (w as f32 / CROP) as i32;
-        let ch = (h as f32 / CROP) as i32;
-        let x = (w - cw) / 2;
-        let y = (h - ch) / 2;
-
-        let roi = core::Rect::new(x, y, cw, ch);
-        let cropped = Mat::roi(&light, roi).unwrap();
-
-        resize(&cropped, 640, &mut rsz);
-
-        let sw = rsz.cols();
-        let sh = rsz.rows();
-
-        let bytes = rsz.data_bytes().unwrap();
+        let bytes = light.data_bytes().unwrap();
 
         let data = data.get_or_insert_with(|| {
-            vec![0.0f32; (sw * sh) as usize]
+            vec![0.0f32; (w * h) as usize]
         });
 
         for i in 0..data.len() {
             data[i] = bytes[i] as f32 / 255.0;
         }
 
-        let (mask, tags) = state.detector_wr().process(sw as usize, sh as usize, &data);
+        let (tags, edges, corners) = state.detector_wr().process(w as usize, h as usize, data);
 
         let now = Instant::now();
         let ms = now.duration_since(start).as_secs_f32() * 1000.0;
@@ -132,27 +140,20 @@ pub fn update(state: &Arc<St>) {
         }
         tick += 1;
 
-        let mat = mat.get_or_insert_with(|| {
-            Mat::zeros(sh, sw, core::CV_8UC1).unwrap().to_mat().unwrap()
-        });
-        let mts = mat.data_bytes_mut().unwrap();
+        let scale = *SCALE.get_or_init(|| consts::cfg().scale);
+        resize(&light, (w as f32 / scale as f32) as u32, &mut rsz);
 
-        for i in 0..mask.len() {
-            mts[i] = mask[i] * 255;
-        }
-
-        resize(&rsz, 640 / SCALE, &mut frsz);
-        resize(mat, 640 / SCALE, &mut mrsz);
-
-        let frame = Frame::encode(&frsz);
-        let mask = Frame::encode(&mrsz);
+        let fm = Frame::encode(&rsz);
+        let em = encode(w, h, scale, edges, &mut mat, &mut rsz);
+        let cm = encode(w, h, scale, corners, &mut mat, &mut rsz);
 
         {
             let update = Data {
                 tags,
                 ms: Some(ms),
-                frame: Some(frame),
-                mask: Some(mask),
+                frame: Some(fm),
+                edges: Some(em),
+                corners: Some(cm),
                 time: SystemTime::now(),
             };
 
@@ -161,7 +162,7 @@ pub fn update(state: &Arc<St>) {
     }
 }
 
-fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32, out: &mut Mat)  {
+fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: u32, out: &mut Mat)  {
     let w = img.cols();
     let h = img.rows();
 
@@ -177,4 +178,18 @@ fn resize<T: MatTraitConst + ToInputArray>(img: &T, max: i32, out: &mut Mat)  {
         0.0,
         imgproc::INTER_LINEAR,
     ).unwrap();
+}
+
+fn encode(w: i32, h: i32, scale: u32, mask: Vec<u8>, mat: &mut Option<Mat>, rsz: &mut Mat) -> Frame {
+    let mat = mat.get_or_insert_with(|| {
+        Mat::zeros(h, w, core::CV_8UC1).unwrap().to_mat().unwrap()
+    });
+    let mts = mat.data_bytes_mut().unwrap();
+
+    for i in 0..mask.len() {
+        mts[i] = mask[i] * 255;
+    }
+
+    resize(mat, (w as f32 / scale as f32) as u32, rsz);
+    Frame::encode(&rsz)
 }

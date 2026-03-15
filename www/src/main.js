@@ -4,44 +4,63 @@ import { initConfig } from './config.js';
 
 const fCnv = query('#frame');
 const fCtx = fCnv.getContext('2d');
-const mCnv = query('#mask');
-const mCtx = mCnv.getContext('2d');
+
+const eCnv = query('#edges');
+const eCtx = eCnv.getContext('2d');
+const cCnv = query('#corners');
+const cCtx = cCnv.getContext('2d');
+
 const ms = query('#ms');
 
 let tags = null;
-const errs = { frame: false, mask: false, tags: false };
+const errs = { data: false, frame: false, edges: false, corners: false };
 
-function update() {
-  fetch('/api/ms')
-    .then((res) => res.json())
-    .then((f) => {
-      ms.innerText = f.toFixed(2);
-    });
+let updating = false;
 
-  fetchDraw('/api/frame', fCnv, fCtx)
-    .then(() => errs.frame = false)
-    .catch((err) => {
-      console.error(err);
-      errs.frame = true;
-    });
+async function update() {
+  if (updating) return;
+  updating = true;
 
-  fetchDraw('/api/mask', mCnv, mCtx)
-    .then(() => errs.mask = false)
-    .catch((err) => {
-      console.error(err);
-      errs.mask = true;
-    });
+  try {
+    const promises = [
+      fetch('/api/data')
+        .then((res) => res.json())
+        .then((data) => {
+          tags = data.tags;
+          ms.innerText = data.ms.toFixed(2);
+          errs.data = false;
+        })
+        .catch((err) => {
+          console.error(err);
+          errs.data = true;
+        }),
 
-  fetch('/api/tags')
-    .then((res) => res.json())
-    .then((data) => {
-      tags = data;
-      errs.tags = false;
-    })
-    .catch((err) => {
-      console.error(err);
-      errs.tags = true;
-    });
+      fetchDraw('/api/frame', fCnv, fCtx)
+        .then(() => errs.frame = false)
+        .catch((err) => {
+          console.error(err);
+          errs.frame = true;
+        }),
+
+      fetchDraw('/api/edges', eCnv, eCtx)
+        .then(() => errs.edges = false)
+        .catch((err) => {
+          console.error(err);
+          errs.edges = true;
+        }),
+
+      fetchDraw('/api/corners', cCnv, cCtx, true)
+        .then(() => errs.corners = false)
+        .catch((err) => {
+          console.error(err);
+          errs.corners = true;
+        }),
+    ];
+
+    await Promise.all(promises);
+  } finally {
+    updating = false;
+  }
 }
 
 initConfig();
