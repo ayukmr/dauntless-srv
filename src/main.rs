@@ -22,14 +22,11 @@ fn rocket() -> _ {
     let detector = Detector::new(
         Config {
             fov_rad: fov,
-            harris_k: 0.04,
-            harris_thresh: 0.5,
             hyst_low: 0.025,
             hyst_high: 0.05,
-            filter_ratios: false,
+            filter_ratios: true,
             filter_angles: true,
-            filter_enclosed: false,
-            ..Config::default()
+            filter_enclosed: false
         },
     );
 

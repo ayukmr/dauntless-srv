@@ -27,20 +27,16 @@
 
             <section>
                 <div>
-                    <h3><span id="ms"></span> ms</h3>
+                    <h3 id="info">
+                        <span><span id="fps"></span> FPS</span>
+                        <span id="res">200×200</span>
+                    </h3>
                     <canvas id="frame"></canvas>
                 </div>
-            </section>
-
-            <section>
-                <div>
-                    <h3>Edges</h3>
-                    <canvas id="edges"></canvas>
-                </div>
 
                 <div>
-                    <h3>Corners</h3>
-                    <canvas id="corners"></canvas>
+                    <h3>Mask</h3>
+                    <canvas id="mask"></canvas>
                 </div>
             </section>
 
@@ -57,28 +53,26 @@
                 </div>
             </section>
 
-            <section id="settings">
-                <div>
-                    <label>Harris K</label>
-                    <input type="number" name="harris_k"></input>
+            <div>
+                <h3>Settings</h3>
 
-                    <label>Harris Thresh</label>
-                    <input type="number" name="harris_thresh"></input>
-                </div>
+                <section id="settings">
+                    <div>
+                        <label>Hysteresis Low</label>
+                        <input type="number" name="hyst_low"></input>
+                    </div>
 
-                <div>
-                    <label>Hysteresis Low</label>
-                    <input type="number" name="hyst_low"></input>
+                    <div>
+                        <label>Hysteresis High</label>
+                        <input type="number" name="hyst_high"></input>
+                    </div>
 
-                    <label>Hysteresis High</label>
-                    <input type="number" name="hyst_high"></input>
-                </div>
-
-                <div>
-                    <label>Defaults</label>
-                    <button id="reset">Reset</button>
-                </div>
-            </section>
+                    <div>
+                        <label>Defaults</label>
+                        <button id="reset">Reset</button>
+                    </div>
+                </section>
+            </div>
         </main>
     </body>
 </html>

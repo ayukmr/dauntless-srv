@@ -1,21 +1,27 @@
 @font-face {
-  font-family: Cosm;
-  src: url('/Cosm.ttf') format('truetype');
-  font-weight: 400;
+  font-family: 'IBM Plex Sans';
+  src: url('/IBMPlexSans.ttf');
+  font-weight: 100 700;
   font-style: normal;
+  font-display: swap;
 }
 
-html {
-  font-family: 'Cosm', 'Helvetica Neue', sans-serif;
-  font-size: 1.05em;
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('/IBMPlexSans-Italic.ttf');
+  font-weight: 100 700;
+  font-style: italic;
+  font-display: swap;
 }
 
 main {
   margin: 50px auto !important;
+  width: fit-content;
 }
 
 canvas {
   height: 250px;
+  border-radius: 4px;
 }
 
 section {
@@ -60,7 +66,11 @@ h3 {
   margin-top: 0;
 }
 
-#ms {
-  display: inline-block;
-  width: 54.45px;
+#info {
+  display: flex;
+  justify-content: space-between;
+}
+
+#fps {
+  font-variant-numeric: tabular-nums;
 }

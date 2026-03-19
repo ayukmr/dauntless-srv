@@ -27,8 +27,7 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
         .mount("/api", routes![
             data,
             frame,
-            edges,
-            corners,
+            mask,
             get_config,
             set_config,
             reset_config,
@@ -37,7 +36,7 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
 
 #[catch(404)]
 fn not_found(req: &Request<'_>) -> String {
-    println!("\rweb: {}", "404".red());
+    // println!("\rweb: {}", "404".red());
     format!("no such route: {}", req.uri())
 }
 
@@ -58,14 +57,9 @@ fn frame(state: &State<Arc<St>>) -> Option<Frame> {
     state.data().frame.clone()
 }
 
-#[get("/edges")]
-fn edges(state: &State<Arc<St>>) -> Option<Frame> {
-    state.data().edges.clone()
-}
-
-#[get("/corners")]
-fn corners(state: &State<Arc<St>>) -> Option<Frame> {
-    state.data().corners.clone()
+#[get("/mask")]
+fn mask(state: &State<Arc<St>>) -> Option<Frame> {
+    state.data().mask.clone()
 }
 
 #[get("/config")]

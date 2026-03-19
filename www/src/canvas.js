@@ -26,7 +26,7 @@ function rect(ctx, x, y, w, h, color) {
 
 
 function text(ctx, text, x, y, color) {
-  ctx.font = '35px Cosm';
+  ctx.font = '35px IBM Plex Sans';
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

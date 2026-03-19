@@ -4,23 +4,22 @@ import { color, point, line, rect, text } from './canvas.js';
 const fCnv = query('#frame');
 const fCtx = fCnv.getContext('2d');
 
-const eCnv = query('#edges');
-const eCtx = eCnv.getContext('2d');
-const cCnv = query('#corners');
-const cCtx = cCnv.getContext('2d');
+const mCnv = query('#mask');
+const mCtx = mCnv.getContext('2d');
 
 const tCnv = query('#tags');
 const tCtx = tCnv.getContext('2d');
 
 const header = query('header');
 const detections = query('#detections');
+const res = query('#res');
 
 function draw(getTags, errs) {
   const tags = getTags();
 
   if (tags !== null) {
     drawFrame(tags);
-    drawMasks(tags);
+    drawMask(tags);
     drawTags(tags);
     listDetections(tags);
   }
@@ -55,15 +54,14 @@ function drawFrame(tags) {
   }
 }
 
-function drawMasks(tags) {
+function drawMask(tags) {
   for (const tag of tags) {
     const { id, corners } = tag;
 
     const clr = color('#ff0000', id);
 
     for (const corner of corners) {
-      point(eCtx, corner[0], corner[1], clr);
-      point(cCtx, corner[0], corner[1], clr);
+      point(mCtx, corner[0], corner[1], clr);
     }
   }
 }
@@ -127,13 +125,15 @@ function listDetections(tags) {
 }
 
 async function fetchDraw(url, cnv, ctx, red = false) {
-  const res = await fetch(url);
+  const resp = await fetch(url);
 
-  const w = +res.headers.get('X-Width');
-  const h = +res.headers.get('X-Height');
-  const scale = +res.headers.get('X-Scale');
+  const w = +resp.headers.get('X-Width');
+  const h = +resp.headers.get('X-Height');
+  const scale = +resp.headers.get('X-Scale');
 
-  const buf = new Uint8Array(await res.arrayBuffer());
+  res.innerText = `${w * scale}×${h * scale} (S:${scale})`;
+
+  const buf = new Uint8Array(await resp.arrayBuffer());
   const img = new ImageData(w, h);
 
   for (let i = 0; i < buf.length; i++) {

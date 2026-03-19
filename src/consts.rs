@@ -7,16 +7,16 @@ use std::io::BufReader;
 use serde::Deserialize;
 
 pub const SCALE: OnceCell<u32> = OnceCell::new();
-pub const CAMERA: OnceCell<i32> = OnceCell::new();
-pub const WIDTH: OnceCell<f64> = OnceCell::new();
-pub const HEIGHT: OnceCell<f64> = OnceCell::new();
+pub const CAMERA: OnceCell<u32> = OnceCell::new();
+pub const WIDTH: OnceCell<u32> = OnceCell::new();
+pub const HEIGHT: OnceCell<u32> = OnceCell::new();
 
 #[derive(Deserialize)]
 pub struct Config {
     pub scale: u32,
-    pub camera: i32,
-    pub width: f64,
-    pub height: f64,
+    pub camera: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 pub fn cfg() -> Config {

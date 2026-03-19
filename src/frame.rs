@@ -7,26 +7,19 @@ use rocket::{response, Request, Response};
 use rocket::http::ContentType;
 use rocket::response::Responder;
 
-use opencv::prelude::*;
-
 #[derive(Clone)]
 pub struct Frame {
-    pub width: i32,
-    pub height: i32,
+    pub width: u32,
+    pub height: u32,
     pub data: Arc<[u8]>,
 }
 
 impl Frame {
-    pub fn encode(mat: &Mat) -> Self {
-        let width = mat.cols();
-        let height = mat.rows();
-
-        let bytes = mat.data_bytes().unwrap().to_vec();
-
+    pub fn encode(w: u32, h: u32, data: &[u8]) -> Self {
         Self {
-            width,
-            height,
-            data: bytes.into(),
+            width: w,
+            height: h,
+            data: data.into(),
         }
     }
 }
