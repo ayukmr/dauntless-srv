@@ -1,16 +1,18 @@
 use crate::frame::Frame;
 use crate::data::St;
 
-use dauntless::{Config, Tag};
-use serde::Serialize;
+use dauntless::Config;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use colored::Colorize;
+use rust_embed::Embed;
+use serde_json::{Value, json};
 
 use rocket::{Build, Request, Rocket, State};
-use rocket::fs::FileServer;
 use rocket::fairing::AdHoc;
+use rocket::http::ContentType;
 use rocket::serde::json::Json;
 
 pub fn build(state: Arc<St>) -> Rocket<Build> {
@@ -23,8 +25,9 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
             })
         ))
         .register("/", catchers![not_found])
-        .mount("/", FileServer::from("./www"))
-        .mount("/api", routes![
+        .mount("/", routes![
+            index,
+            files,
             data,
             frame,
             mask,
@@ -36,43 +39,62 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
 
 #[catch(404)]
 fn not_found(req: &Request<'_>) -> String {
-    // println!("\rweb: {}", "404".red());
+    println!("\rweb: {}", "404".red());
     format!("no such route: {}", req.uri())
 }
 
-#[derive(Serialize)]
-struct Sent {
-    ms: Option<f32>,
-    tags: Vec<Tag>,
+#[derive(Embed)]
+#[folder = "www"]
+struct Files;
+
+#[get("/")]
+fn index() -> (ContentType, Vec<u8>) {
+    (
+        ContentType::HTML,
+        Files::get("index.html").unwrap().data.into_owned(),
+    )
 }
 
-#[get("/data")]
-fn data(state: &State<Arc<St>>) -> Json<Sent> {
+#[get("/<file..>")]
+fn files(file: PathBuf) -> Option<(ContentType, Vec<u8>)> {
+    let path = file.to_string_lossy();
+
+    Files::get(path.as_ref()).map(|data| {
+        let content_type = ContentType::from_extension(
+            path.split('.').last().unwrap_or("")
+        ).unwrap_or(ContentType::Binary);
+
+        (content_type, data.data.into_owned())
+    })
+}
+
+#[get("/api/data")]
+fn data(state: &State<Arc<St>>) -> Json<Value> {
     let data = state.data();
-    Json(Sent { ms: data.ms, tags: data.tags.clone() })
+    Json(json!({ "ms": data.ms, "tags": data.tags.clone() }))
 }
 
-#[get("/frame")]
+#[get("/api/frame")]
 fn frame(state: &State<Arc<St>>) -> Option<Frame> {
     state.data().frame.clone()
 }
 
-#[get("/mask")]
+#[get("/api/mask")]
 fn mask(state: &State<Arc<St>>) -> Option<Frame> {
     state.data().mask.clone()
 }
 
-#[get("/config")]
+#[get("/api/config")]
 fn get_config(state: &State<Arc<St>>) -> Json<Config> {
     Json(state.detector().get_config())
 }
 
-#[post("/config", data = "<config>")]
+#[post("/api/config", data = "<config>")]
 fn set_config(state: &State<Arc<St>>, config: Json<Config>) {
     state.detector_wr().set_config(*config);
 }
 
-#[post("/config/reset")]
+#[post("/api/config/reset")]
 fn reset_config(state: &State<Arc<St>>) -> Json<Config> {
     let config = Config::default();
 
