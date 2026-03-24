@@ -2,16 +2,13 @@ use crate::data::St;
 
 use dauntless::Tag;
 
-use anyhow::Result;
-
+use std::sync::Arc;
 use std::thread;
 use std::net::TcpStream;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use std::sync::Arc;
-
+use anyhow::Result;
 use colored::Colorize;
-
 use serde::Serialize;
 
 use tungstenite::{Message, WebSocket};
@@ -30,6 +27,7 @@ const TYPE3: u32 = 1;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
+    delta: i64,
 }
 
 impl NT {
@@ -40,9 +38,21 @@ impl NT {
             "v4.1.networktables.first.wpi.edu".parse().unwrap(),
         );
 
-        let (ws, _) = tungstenite::connect(req)?;
+        let (mut ws, _) = tungstenite::connect(req)?;
 
-        Ok(Self { ws })
+        let local = now();
+        let buf = rmp_serde::to_vec(&(-1i64, 0i64, 2u32, local)).unwrap();
+
+        ws.send(Message::Binary(buf.into()))?;
+        let msg = ws.read()?;
+
+        let (_, server, _, t0): (i64, i64, u32, i64) = rmp_serde::from_slice(&msg.into_data())?;
+        let t1 = now();
+
+        let rtt = t1 - t0;
+        let delta = server + rtt / 2 - t0;
+
+        Ok(Self { ws, delta })
     }
 
     fn publish(&mut self, topic: &str, uid: u32, ty: &str) -> Result<()> {
@@ -60,7 +70,7 @@ impl NT {
     }
 
     fn send(&mut self, uid: u32, ty: u32, val: impl Serialize) -> Result<()> {
-        let buf = rmp_serde::to_vec(&(uid, 0i64, ty, val)).unwrap();
+        let buf = rmp_serde::to_vec(&(uid, now() + self.delta, ty, val)).unwrap();
         self.ws.send(Message::Binary(buf.into()))?;
         Ok(())
     }
@@ -113,4 +123,8 @@ fn tick(nt: &mut NT, state: &Arc<St>) -> Result<()> {
     nt.send(UID3, TYPE3, data.time.duration_since(UNIX_EPOCH)?.as_secs_f64())?;
 
     Ok(())
+}
+
+fn now() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as i64
 }
