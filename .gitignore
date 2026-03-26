@@ -1,7 +1,10 @@
-# macos
 .DS_Store
 
-# cargo
 Cargo.lock
 debug/
 target/
+
+yarn.lcok
+node_modules/
+.parcel-cache/
+dist/

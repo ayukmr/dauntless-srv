@@ -1,10 +1,8 @@
-use crate::consts::{self, CAMERA, HEIGHT, SCALE, WIDTH};
+use crate::config::Config;
 use crate::frame::Frame;
+use crate::meta::Meta;
 
 use dauntless::{Detector, Tag};
-use nokhwa::Camera;
-use nokhwa::pixel_format::LumaFormat;
-use nokhwa::utils as nutils;
 
 use std::io::{self, Write};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -12,9 +10,14 @@ use std::time::{Instant, SystemTime};
 
 use colored::Colorize;
 
+use nokhwa::Camera;
+use nokhwa::pixel_format::LumaFormat;
+use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType, Resolution};
+
 pub struct St {
-    pub detector: RwLock<Detector>,
     pub data: RwLock<Data>,
+    pub config: RwLock<Config>,
+    pub meta: RwLock<Meta>,
 }
 
 pub struct Data {
@@ -38,57 +41,143 @@ impl Default for Data {
 }
 
 impl St {
-    pub fn new(detector: Detector) -> Self {
+    pub fn new() -> Self {
         Self {
-            detector: RwLock::new(detector),
-            data: RwLock::new(Data::default()),
+            data: Data::default().into(),
+            config: Config::load().unwrap_or_default().into(),
+            meta: Meta::new().into(),
         }
-    }
-
-    pub fn detector(&self) -> RwLockReadGuard<'_, Detector> {
-        self.detector.read().unwrap()
-    }
-
-    pub fn detector_wr(&self) -> RwLockWriteGuard<'_, Detector> {
-        self.detector.write().unwrap()
     }
 
     pub fn data(&self) -> RwLockReadGuard<'_, Data> {
         self.data.read().unwrap()
     }
-
     pub fn data_wr(&self) -> RwLockWriteGuard<'_, Data> {
         self.data.write().unwrap()
+    }
+
+    pub fn config(&self) -> RwLockReadGuard<'_, Config> {
+        self.config.read().unwrap()
+    }
+    pub fn config_wr(&self) -> RwLockWriteGuard<'_, Config> {
+        self.config.write().unwrap()
+    }
+
+    pub fn meta(&self) -> RwLockReadGuard<'_, Meta> {
+        self.meta.read().unwrap()
     }
 }
 
 pub fn update(state: &Arc<St>) {
-    let index = nutils::CameraIndex::Index(*CAMERA.get_or_init(|| consts::cfg().camera));
+    let (mut cam_idx, mut w, mut h, mut scale) = {
+        let config = state.config();
+        (config.server.camera, config.server.res.0, config.server.res.1, config.server.scale)
+    };
 
-    let requested = nutils::RequestedFormat::new::<LumaFormat>(
-        nutils::RequestedFormatType::Closest(
-            nutils::CameraFormat::new(
-                nutils::Resolution::new(
-                    *WIDTH.get_or_init(|| consts::cfg().width),
-                    *HEIGHT.get_or_init(|| consts::cfg().height),
-                ),
-                nutils::FrameFormat::YUYV,
-                1000,
-            ),
+    let mut camera = create_camera(cam_idx, w, h);
+    let mut scale_knl = create_kernel(scale);
+    let mut detector = Detector::new();
+
+    let mut tick = 0;
+
+    let mut data = vec![0.0; (w * h) as usize];
+    let mut fs = vec![0; (w * h) as usize];
+    let mut rsz = vec![0; (w / scale * h / scale) as usize];
+
+    loop {
+        (cam_idx, w, h, scale) = {
+            let config = state.config();
+
+            let (new_idx, new_w, new_h, new_scale) =
+                (config.server.camera, config.server.res.0, config.server.res.1, config.server.scale);
+
+            if (cam_idx, w, h) != (new_idx, new_w, new_h) {
+                camera.stop_stream().unwrap();
+                camera = create_camera(new_idx, new_w, new_h);
+
+                data = vec![0.0; (new_w * new_h) as usize];
+                fs = vec![0; (new_w * new_h) as usize];
+                rsz = vec![0; (new_w / new_scale * new_h / new_scale) as usize];
+            }
+            if scale != new_scale {
+                scale_knl = create_kernel(new_scale);
+                rsz = vec![0; (new_w / new_scale * new_h / new_scale) as usize];
+            }
+
+            (new_idx, new_w, new_h, new_scale)
+        };
+
+        let frame = camera.frame().unwrap();
+        let decoded = frame.decode_image::<LumaFormat>().unwrap();
+        let bytes = decoded.to_vec();
+
+        let start = Instant::now();
+
+        let stride = decoded.len() as u32 / h;
+        for y in 0..h {
+            let src = (y * stride) as usize;
+            let dst = (y * w) as usize;
+
+            for x in 0..w as usize {
+                data[dst + x] = bytes[src + x] as f32 / 255.0;
+            }
+        }
+
+        let (tags, mask) = detector.process(
+            w as usize,
+            h as usize,
+            &state.config().detector,
+            &data,
+        );
+
+        let now = Instant::now();
+        let ms = now.duration_since(start).as_secs_f32() * 1000.0;
+
+        if tick % 10 == 0 {
+            print!(
+                "\rfps: {} | ms: {}",
+                format!("{}", (1000.0 / ms) as i32).to_string().yellow(),
+                format!("{:.2}", ms).to_string().yellow(),
+            );
+            io::stdout().flush().unwrap();
+
+            tick = 0;
+        }
+        tick += 1;
+
+        let fm = encode(w, h, scale, &scale_knl, &data, &mut fs, &mut rsz);
+        let mm = encode(w, h, scale, &scale_knl, &mask, &mut fs, &mut rsz);
+
+        {
+            let update = Data {
+                tags,
+                ms: Some(ms),
+                frame: Some(fm),
+                mask: Some(mm),
+                time: SystemTime::now(),
+            };
+
+            *state.data_wr() = update;
+        }
+    }
+}
+
+fn create_camera(index: u32, width: u32, height: u32) -> Camera {
+    let index = CameraIndex::Index(index);
+
+    let requested = RequestedFormat::new::<LumaFormat>(
+        RequestedFormatType::HighestResolution(
+            Resolution::new(width, height),
         ),
     );
 
     let mut camera = Camera::new(index, requested).unwrap();
     camera.open_stream().unwrap();
 
-    let mut tick = 0;
+    camera
+}
 
-    let mut data = None;
-    let mut fs = None;
-    let mut rsz = None;
-
-    let scale = *SCALE.get_or_init(|| consts::cfg().scale);
-
+fn create_kernel(scale: u32) -> Vec<f32> {
     let sigma = scale as f32 / 3.0;
     let two_sigma_sq = 2.0 * sigma*sigma;
     let center = (scale as f32 - 1.0) / 2.0;
@@ -109,58 +198,24 @@ pub fn update(state: &Arc<St>) {
         *v /= sum;
     }
 
-    loop {
-        let frame = camera.frame().unwrap();
-        let decoded = frame.decode_image::<LumaFormat>().unwrap();
+    scale_knl
+}
 
-        let (w, h) = decoded.dimensions();
-        let bytes = decoded.to_vec();
-
-        let start = Instant::now();
-
-        let data = data.get_or_insert_with(|| vec![0.0; (w * h) as usize]);
-
-        for i in 0..data.len() {
-            data[i] = bytes[i] as f32 / 255.0;
-        }
-
-        let (tags, mask) = state.detector_wr().process(w as usize, h as usize, data);
-
-        let now = Instant::now();
-        let ms = now.duration_since(start).as_secs_f32() * 1000.0;
-
-        if tick % 10 == 0 {
-            print!(
-                "\rfps: {} | ms: {}",
-                format!("{}", (1000.0 / ms) as i32).to_string().yellow(),
-                format!("{:.2}", ms).to_string().yellow(),
-            );
-            io::stdout().flush().unwrap();
-        }
-        tick += 1;
-
-        let sw = w / scale;
-        let sh = h / scale;
-
-        let fs = fs.get_or_insert_with(|| vec![0; (w * h) as usize]);
-        let rsz = rsz.get_or_insert_with(|| vec![0; (sw * sh) as usize]);
-
-        resize(w, h, scale, &scale_knl, &bytes, rsz);
-        let fm = Frame::encode(sw, sh, rsz);
-        let mm = encode(w, h, scale, &scale_knl, &mask, fs, rsz);
-
-        {
-            let update = Data {
-                tags,
-                ms: Some(ms),
-                frame: Some(fm),
-                mask: Some(mm),
-                time: SystemTime::now(),
-            };
-
-            *state.data_wr() = update;
-        }
+fn encode<T: Into<f32> + Copy>(
+    w: u32,
+    h: u32,
+    scale: u32,
+    scale_knl: &[f32],
+    data: &[T],
+    fs: &mut [u8],
+    rsz: &mut [u8],
+) -> Frame {
+    for i in 0..fs.len() {
+        fs[i] = (data[i].into() * 255.0) as u8;
     }
+
+    resize(w, h, scale, scale_knl, fs, rsz);
+    Frame::encode(w / scale, h / scale, scale, rsz)
 }
 
 fn resize(w: u32, h: u32, scale: u32, scale_knl: &[f32], img: &[u8], out: &mut [u8])  {
@@ -202,13 +257,4 @@ fn resize(w: u32, h: u32, scale: u32, scale_knl: &[f32], img: &[u8], out: &mut [
             out[i as usize] = sum as u8;
         }
     }
-}
-
-fn encode(w: u32, h: u32, scale: u32, scale_knl: &[f32], mask: &[u8], fs: &mut [u8], rsz: &mut [u8]) -> Frame {
-    for i in 0..mask.len() {
-        fs[i] = mask[i] * 255;
-    }
-
-    resize(w, h, scale, scale_knl, fs, rsz);
-    Frame::encode(w / scale, h / scale, rsz)
 }

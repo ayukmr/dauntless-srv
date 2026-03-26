@@ -1,7 +1,7 @@
-use crate::frame::Frame;
+use crate::config::Config;
 use crate::data::St;
-
-use dauntless::Config;
+use crate::frame::Frame;
+use crate::meta::Meta;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,11 +29,11 @@ pub fn build(state: Arc<St>) -> Rocket<Build> {
             index,
             files,
             data,
+            meta,
             frame,
             mask,
             get_config,
             set_config,
-            reset_config,
         ])
 }
 
@@ -44,7 +44,7 @@ fn not_found(req: &Request<'_>) -> String {
 }
 
 #[derive(Embed)]
-#[folder = "www"]
+#[folder = "www/dist"]
 struct Files;
 
 #[get("/")]
@@ -61,7 +61,7 @@ fn files(file: PathBuf) -> Option<(ContentType, Vec<u8>)> {
 
     Files::get(path.as_ref()).map(|data| {
         let content_type = ContentType::from_extension(
-            path.split('.').last().unwrap_or("")
+            path.split('.').next_back().unwrap_or("")
         ).unwrap_or(ContentType::Binary);
 
         (content_type, data.data.into_owned())
@@ -71,7 +71,16 @@ fn files(file: PathBuf) -> Option<(ContentType, Vec<u8>)> {
 #[get("/api/data")]
 fn data(state: &State<Arc<St>>) -> Json<Value> {
     let data = state.data();
-    Json(json!({ "ms": data.ms, "tags": data.tags.clone() }))
+
+    let mut tags = data.tags.clone();
+    tags.sort_by_key(|t| t.id);
+
+    Json(json!({ "ms": data.ms, "tags": tags }))
+}
+
+#[get("/api/meta")]
+fn meta(state: &State<Arc<St>>) -> Json<Meta> {
+    Json(state.meta().clone())
 }
 
 #[get("/api/frame")]
@@ -86,18 +95,14 @@ fn mask(state: &State<Arc<St>>) -> Option<Frame> {
 
 #[get("/api/config")]
 fn get_config(state: &State<Arc<St>>) -> Json<Config> {
-    Json(state.detector().get_config())
+    Json(*state.config())
 }
 
 #[post("/api/config", data = "<config>")]
 fn set_config(state: &State<Arc<St>>, config: Json<Config>) {
-    state.detector_wr().set_config(*config);
-}
+    let mut cfg = config;
+    cfg.server.scale = u32::max(cfg.server.scale, 1);
 
-#[post("/api/config/reset")]
-fn reset_config(state: &State<Arc<St>>) -> Json<Config> {
-    let config = Config::default();
-
-    state.detector_wr().set_config(config);
-    Json(config)
+    *state.config_wr() = *cfg;
+    state.config().save();
 }

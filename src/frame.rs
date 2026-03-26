@@ -1,5 +1,3 @@
-use crate::consts::{self, SCALE};
-
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -11,14 +9,16 @@ use rocket::response::Responder;
 pub struct Frame {
     pub width: u32,
     pub height: u32,
+    pub scale: u32,
     pub data: Arc<[u8]>,
 }
 
 impl Frame {
-    pub fn encode(w: u32, h: u32, data: &[u8]) -> Self {
+    pub fn encode(width: u32, height: u32, scale: u32, data: &[u8]) -> Self {
         Self {
-            width: w,
-            height: h,
+            width,
+            height,
+            scale,
             data: data.into(),
         }
     }
@@ -30,7 +30,7 @@ impl<'r> Responder<'r, 'static> for Frame {
             .header(ContentType::Binary)
             .raw_header("X-Width", self.width.to_string())
             .raw_header("X-Height", self.height.to_string())
-            .raw_header("X-Scale", SCALE.get_or_init(|| consts::cfg().scale).to_string())
+            .raw_header("X-Scale", self.scale.to_string())
             .sized_body(self.data.len(), Cursor::new(Arc::clone(&self.data)))
             .ok()
     }

@@ -1,0 +1,20 @@
+{
+  "name": "dauntless",
+  "version": "0.1.0",
+  "license": "MIT",
+  "source": "src/index.jsx",
+  "scripts": {
+    "dev": "parcel src/index.html",
+    "build": "parcel build src/index.html"
+  },
+  "dependencies": {
+    "lucide-react": "^1.0.0-rc.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "parcel": "^2.16.4",
+    "postcss": "^8.0.0",
+    "postcss-import-url": "^7.2.0"
+  }
+}
