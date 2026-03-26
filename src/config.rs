@@ -20,7 +20,7 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let file = File::open(path()).unwrap();
+        let file = File::open(path())?;
         let config: Config = serde_json::from_reader(BufReader::new(file))?;
         Ok(config)
     }

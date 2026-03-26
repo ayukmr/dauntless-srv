@@ -44,13 +44,13 @@ class Frame extends Canvas {
       img.data[i * 4 + 3] = 255;
     }
 
-    this.canvas.width = w;
-    this.canvas.height = h;
+    this.canvas.width = w * scale;
+    this.canvas.height = h * scale;
 
     this.ctx.imageSmoothingEnabled = false;
 
     this.ctx.putImageData(img, 0, 0);
-    this.ctx.drawImage(this.canvas, 0, 0);
+    this.ctx.drawImage(this.canvas, 0, 0, w, h, 0, 0, w * scale, h * scale);
   }
 
   draw = () => {

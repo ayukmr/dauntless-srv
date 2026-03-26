@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Context } from './Provider';
 
-import { BlocksIcon, CameraIcon, SettingsIcon } from 'lucide-react';
+import { CameraIcon, Grid2x2Icon, SettingsIcon } from 'lucide-react';
 
 import Frame from './Frame';
 import CameraSettings from './CameraSettings';
@@ -41,7 +41,7 @@ class Frames extends Component {
 
       <div>
         <h3 className="info">
-          <span><BlocksIcon /> Mask</span>
+          <span><Grid2x2Icon /> Mask</span>
           <SettingsIcon
             style={{ cursor: 'pointer' }}
             onClick={() => this.setState({ processingSettings: true })}
