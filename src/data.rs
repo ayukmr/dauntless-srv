@@ -42,10 +42,12 @@ impl Default for Data {
 
 impl St {
     pub fn new() -> Self {
+        let config = Config::load().unwrap_or_default();
+
         Self {
+            config: config.into(),
             data: Data::default().into(),
-            config: Config::load().unwrap_or_default().into(),
-            meta: Meta::new().into(),
+            meta: Meta::new(config).into(),
         }
     }
 
@@ -93,7 +95,19 @@ pub fn update(state: &Arc<St>) {
 
             if (cam_idx, w, h) != (new_idx, new_w, new_h) {
                 camera.stop_stream().unwrap();
-                camera = create_camera(new_idx, new_w, new_h);
+
+                if cam_idx != new_idx {
+                    camera = create_camera(new_idx, new_w, new_h);
+                } else {
+                    camera.set_camera_requset(
+                        RequestedFormat::new::<LumaFormat>(
+                            RequestedFormatType::HighestResolution(
+                                Resolution::new(new_w, new_h),
+                            ),
+                        ),
+                    ).unwrap();
+                    camera.open_stream().unwrap();
+                }
 
                 data = vec![0.0; (new_w * new_h) as usize];
                 fs = vec![0; (new_w * new_h) as usize];
