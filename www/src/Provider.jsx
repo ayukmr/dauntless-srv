@@ -30,7 +30,6 @@ class Provider extends Component {
   };
 
   update = (domain, settings) => {
-    console.log(domain, settings)
     this.setState((prev) => {
       const updated = {
         ...prev.config,

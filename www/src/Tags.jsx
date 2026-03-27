@@ -33,7 +33,7 @@ class Tags extends Canvas {
 
       this.text(id, x, y, '#00ff00');
     }
-  }
+  };
 }
 
 export default Tags;

@@ -4,5 +4,5 @@ import './styles/index.css';
 import { Provider } from './Provider';
 
 const container = document.getElementById('app');
-const root = createRoot(container)
+const root = createRoot(container);
 root.render(<Provider><App /></Provider>);

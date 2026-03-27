@@ -51,7 +51,7 @@ class Frame extends Canvas {
 
     this.ctx.putImageData(img, 0, 0);
     this.ctx.drawImage(this.canvas, 0, 0, w, h, 0, 0, w * scale, h * scale);
-  }
+  };
 
   draw = () => {
     for (const tag of this.context.data.tags) {
