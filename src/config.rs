@@ -12,23 +12,30 @@ use nokhwa::Camera;
 use nokhwa::pixel_format::LumaFormat;
 use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
 
-#[derive(Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Config {
     pub detector: DetectorConfig,
     pub server: ServerConfig,
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
-        let file = File::open(path())?;
-        let config: Config = serde_json::from_reader(BufReader::new(file))?;
-        Ok(config)
+    pub fn default(index: u32) -> Self {
+        Self {
+            detector: DetectorConfig::default(),
+            server: ServerConfig::default(index),
+        }
     }
 
-    pub fn save(&self) {
+    pub fn load_all() -> Result<Vec<Self>> {
+        let file = File::open(path())?;
+        let configs: Vec<Config> = serde_json::from_reader(BufReader::new(file))?;
+        Ok(configs)
+    }
+
+    pub fn save_all(configs: Vec<Self>) {
         let file = File::create(path()).unwrap();
         let writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, self).unwrap();
+        serde_json::to_writer_pretty(writer, &configs).unwrap();
     }
 }
 
@@ -39,10 +46,10 @@ pub struct ServerConfig {
     pub scale: u32,
 }
 
-impl Default for ServerConfig {
-    fn default() -> Self {
+impl ServerConfig {
+    fn default(index: u32) -> Self {
         let cam = Camera::new(
-            CameraIndex::Index(0),
+            CameraIndex::Index(index),
             RequestedFormat::new::<LumaFormat>(RequestedFormatType::AbsoluteHighestFrameRate),
         ).unwrap();
         let res = cam.resolution();

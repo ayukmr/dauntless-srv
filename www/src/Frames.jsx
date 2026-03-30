@@ -16,7 +16,7 @@ class Frames extends Component {
   };
 
   render() {
-    const { data, meta, config } = this.context;
+    const { id, data, meta, config } = this.context;
     const { cameraSettings, processingSettings } = this.state;
 
     return <section>
@@ -29,7 +29,7 @@ class Frames extends Component {
           />
         </h3>
 
-        <Frame url="/api/frame" showIDs />
+        <Frame url={`/api/${id}/frame`} showIDs />
 
         <h3 className="info">
           <span style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -48,7 +48,7 @@ class Frames extends Component {
           />
         </h3>
 
-        <Frame url="/api/mask" />
+        <Frame url={`/api/${id}/mask`} />
       </div>
 
       <CameraSettings

@@ -4,6 +4,7 @@ const Context = React.createContext(null);
 
 class Provider extends Component {
   state = {
+    id: 0,
     data: null,
     meta: null,
     config: null,
@@ -20,12 +21,12 @@ class Provider extends Component {
     clearInterval(this.interval);
   }
 
-  loaded = () => {
+  isLoaded = () => {
     const { data, meta, config } = this.state;
     return data !== null && meta !== null && config !== null;
   };
 
-  connected = () => {
+  isConnected = () => {
     return !Object.values(this.state.errors).some(Boolean);
   };
 
@@ -44,7 +45,11 @@ class Provider extends Component {
     });
   };
 
-  error = (key, on) => {
+  updateID = (id) => {
+    this.setState({ id }, () => this.fetchConfig());
+  };
+
+  updateError = (key, on) => {
     this.setState((prev) => ({
       errors: {
         ...prev.errors,
@@ -53,32 +58,30 @@ class Provider extends Component {
     }));
   };
 
-  fetch = async (key) => {
-    const path = `/api/${key}`;
-
+  fetch = async (path, key) => {
     try {
       const res = await fetch(path);
       this.setState({ [key]: await res.json() });
-      this.error(path, false);
+      this.updateError(path, false);
     } catch {
-      this.error(path, true);
+      this.updateError(path, true);
     }
   };
 
   fetchData = async () => {
-    await this.fetch('data');
+    await this.fetch(`/api/${this.state.id}/data`, 'data');
   };
 
   fetchMeta = async () => {
-    await this.fetch('meta');
+    await this.fetch('/api/meta', 'meta');
   };
 
   fetchConfig = async () => {
-    await this.fetch('config');
+    await this.fetch(`/api/${this.state.id}/config`, 'config');
   };
 
   setConfig = async (config) => {
-    await fetch('/api/config', {
+    await fetch(`/api/${this.state.id}/config`, {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -88,10 +91,11 @@ class Provider extends Component {
     return (
       <Context.Provider
         value={{
-          loaded: this.loaded,
-          connected: this.connected,
+          isLoaded: this.isLoaded,
+          isConnected: this.isConnected,
           update: this.update,
-          error: this.error,
+          updateID: this.updateID,
+          updateError: this.updateError,
           ...this.state,
         }}
       >

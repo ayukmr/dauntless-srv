@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::config::Config;
 
 use anyhow::Result;
@@ -13,16 +15,22 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn new(config: Config) -> Self {
+    pub fn new(configs: &Vec<Config>) -> Self {
         let mut cams = nokhwa::query(ApiBackend::Auto).unwrap();
         cams.sort_by_key(|c| c.index().as_index().unwrap());
+
+        let cam_res: HashMap<u32, (u32, u32)> =
+            configs
+                .iter()
+                .map(|c| (c.server.camera, c.server.res))
+                .collect();
 
         let info =
             cams
                 .iter()
                 .filter_map(|c| {
-                    let set =
-                        (config.server.camera == c.index().as_index().unwrap()).then_some(config.server.res);
+                    let idx = c.index().as_index().unwrap();
+                    let set = cam_res.get(&idx).map(|r| *r);
 
                     get_res(c, set)
                         .map(|res| Some((c.human_name(), res)))

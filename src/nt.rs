@@ -1,6 +1,4 @@
-use crate::data::St;
-
-use dauntless::Tag;
+use crate::data::{CameraTag, St};
 
 use std::sync::Arc;
 use std::thread;
@@ -76,7 +74,7 @@ impl NT {
     }
 }
 
-pub fn run(state: &Arc<St>) {
+pub fn run(states: Vec<Arc<St>>) {
     loop {
         let mut nt = loop {
             match init() {
@@ -91,7 +89,7 @@ pub fn run(state: &Arc<St>) {
         println!("\rnt: {}", "connected".green());
 
         loop {
-            if tick(&mut nt, state).is_err() {
+            if tick(&mut nt, &states).is_err() {
                 println!("\rnt: {}", "tick failed".red());
                 break;
             }
@@ -110,17 +108,30 @@ fn init() -> Result<NT> {
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, state: &Arc<St>) -> Result<()> {
-    let data = state.data();
+fn tick(nt: &mut NT, states: &Vec<Arc<St>>) -> Result<()> {
+    let (s_tags, times): (Vec<Vec<CameraTag>>, Vec<SystemTime>) =
+        states
+            .iter()
+            .map(|st| {
+                let data = st.data();
+                (data.tags.clone(), data.time)
+            })
+            .unzip();
 
-    let (tags, ids): (Vec<&Tag>, Vec<u32>) =
-        data.tags.iter().filter_map(|t| t.id.map(|id| (t, id))).unzip();
+    let (tags, ids): (Vec<CameraTag>, Vec<u32>) =
+        s_tags
+            .iter()
+            .flatten()
+            .filter_map(|t| t.tag.id.map(|id| (t, id)))
+            .unzip();
 
     let json = serde_json::to_string(&tags).unwrap();
 
+    let time = times.iter().max().unwrap();
+
     nt.send(UID1, TYPE1, json)?;
     nt.send(UID2, TYPE2, ids)?;
-    nt.send(UID3, TYPE3, data.time.duration_since(UNIX_EPOCH)?.as_secs_f64())?;
+    nt.send(UID3, TYPE3, time.duration_since(UNIX_EPOCH)?.as_secs_f64())?;
 
     Ok(())
 }

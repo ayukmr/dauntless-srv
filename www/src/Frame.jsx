@@ -12,9 +12,9 @@ class Frame extends Canvas {
       async () => {
         try {
           await this.fetch();
-          this.context.error(this.props.url, false);
+          this.context.updateError(this.props.url, false);
         } catch {
-          this.context.error(this.props.url, true);
+          this.context.updateError(this.props.url, true);
         }
       },
       50

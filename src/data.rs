@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::frame::Frame;
-use crate::meta::Meta;
 
 use dauntless::{Detector, Tag};
+use serde::Serialize;
 
 use std::io::{self, Write};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -15,17 +15,23 @@ use nokhwa::pixel_format::LumaFormat;
 use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType, Resolution};
 
 pub struct St {
+    pub id: u32,
     pub data: RwLock<Data>,
     pub config: RwLock<Config>,
-    pub meta: RwLock<Meta>,
 }
 
 pub struct Data {
     pub ms: Option<f32>,
-    pub tags: Vec<Tag>,
+    pub tags: Vec<CameraTag>,
     pub frame: Option<Frame>,
     pub mask: Option<Frame>,
     pub time: SystemTime,
+}
+
+#[derive(Clone, Copy, Serialize)]
+pub struct CameraTag {
+    pub camera: u32,
+    pub tag: Tag,
 }
 
 impl Default for Data {
@@ -41,13 +47,11 @@ impl Default for Data {
 }
 
 impl St {
-    pub fn new() -> Self {
-        let config = Config::load().unwrap_or_default();
-
+    pub fn new(id: u32, config: Config) -> Self {
         Self {
+            id,
             config: config.into(),
             data: Data::default().into(),
-            meta: Meta::new(config).into(),
         }
     }
 
@@ -63,10 +67,6 @@ impl St {
     }
     pub fn config_wr(&self) -> RwLockWriteGuard<'_, Config> {
         self.config.write().unwrap()
-    }
-
-    pub fn meta(&self) -> RwLockReadGuard<'_, Meta> {
-        self.meta.read().unwrap()
     }
 }
 
@@ -164,7 +164,7 @@ pub fn update(state: &Arc<St>) {
 
         {
             let update = Data {
-                tags,
+                tags: tags.iter().map(|t| CameraTag { camera: state.id, tag: *t }).collect(),
                 ms: Some(ms),
                 frame: Some(fm),
                 mask: Some(mm),

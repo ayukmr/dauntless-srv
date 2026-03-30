@@ -7,16 +7,16 @@ class Header extends Component {
   static contextType = Context;
 
   render() {
-    const connected = this.context.connected();
+    const connected = this.context.isConnected();
 
-    return <header>
+    return <div id="logo">
       <img src={logo} />
 
       <div style={connected ? { display: 'none' } : {}}>
         <h3>&middot;</h3>
-        <h3>Disconnected</h3>
+        <h3 style={{ marginLeft: 15, color: '#ed0000' }}>Disconnected</h3>
       </div>
-    </header>;
+    </div>;
   }
 }
 
