@@ -22,8 +22,8 @@ class Tags extends Canvas {
       const x = w/2 + pos[0] * 100;
       const y = h - 25 - pos[2] * 100;
 
-      const dx = Math.cos(rot) * 75;
-      const dy = Math.sin(rot) * 75;
+      const dx = Math.cos(-rot) * 75;
+      const dy = Math.sin(-rot) * 75;
 
       const p0 = [x - dx/2, y - dy/2];
       const p1 = [x + dx/2, y + dy/2];

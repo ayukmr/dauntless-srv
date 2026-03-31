@@ -27,7 +27,9 @@ class Frame extends Canvas {
   }
 
   fetch = async () => {
-    const res = await fetch(this.props.url);
+    const curURL = this.props.url;
+    const res = await fetch(curURL);
+    if (curURL !== this.props.url) return;
 
     const w = +res.headers.get('X-Width');
     const h = +res.headers.get('X-Height');

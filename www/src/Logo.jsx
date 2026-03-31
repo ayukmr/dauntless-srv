@@ -10,7 +10,10 @@ class Header extends Component {
     const connected = this.context.isConnected();
 
     return <div id="logo">
-      <img src={logo} />
+      <img
+        src={logo}
+        style={connected ? {} : { filter: 'grayscale(100%)' }}
+      />
 
       <div style={connected ? { display: 'none' } : {}}>
         <h3>&middot;</h3>

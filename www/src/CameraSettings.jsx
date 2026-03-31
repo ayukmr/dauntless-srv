@@ -29,7 +29,7 @@ class CameraSettings extends Component {
             update('server', { camera, res: meta.cams[camera][1][0] });
           }}
         >
-          {this.context.meta.cams.map((cam, i) => (
+          {Object.entries(this.context.meta.cams).map(([i, cam]) => (
             <option key={`cam${i}`} value={i}>{cam[0]}</option>
           ))}
         </select>
@@ -60,14 +60,14 @@ class CameraSettings extends Component {
             }
             onChange={() => update('server', { res: curRes })}
           />
-          <span style={{ textAlign: 'center' }}>
+          <span style={{ textAlign: 'center', marginBottom: 12 }}>
             {curRes?.[0]}×{curRes?.[1]}
           </span>
         </div>
       </div>
 
       <div>
-        <label htmlFor="scale">Scale</label>
+        <label htmlFor="scale">Preview Scale</label>
         <input
           type="number"
           name="scale"

@@ -40,9 +40,8 @@ class Provider extends Component {
         }
       };
 
-      this.setConfig(updated);
       return { config: updated };
-    });
+    }, () => this.setConfig());
   };
 
   updateID = (id) => {
@@ -80,10 +79,10 @@ class Provider extends Component {
     await this.fetch(`/api/${this.state.id}/config`, 'config');
   };
 
-  setConfig = async (config) => {
+  setConfig = async () => {
     await fetch(`/api/${this.state.id}/config`, {
       method: 'POST',
-      body: JSON.stringify(config),
+      body: JSON.stringify(this.state.config),
     });
   };
 

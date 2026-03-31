@@ -9,7 +9,7 @@ class App extends Component {
   static contextType = Context;
 
   render() {
-    const { id, isLoaded, updateID } = this.context;
+    const { id, meta, isLoaded, updateID } = this.context;
 
     return isLoaded()
       ? <>
@@ -17,9 +17,9 @@ class App extends Component {
           <Logo />
 
           <div>
-            {Array.from({ length: 2 }).map((_, i) => (
+            {Array.from({ length: meta.n_cams }).map((_, i) => (
               <button
-                style={i == id ? { borderColor: 'var(--fg)' } : {}}
+                style={i === id ? { borderColor: 'var(--fg)' } : {}}
                 onClick={() => updateID(i)}
               >{i}</button>
             ))}

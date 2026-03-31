@@ -6,6 +6,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
 use nokhwa::Camera;
@@ -47,15 +48,27 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
-    fn default(index: u32) -> Self {
-        let cam = Camera::new(
-            CameraIndex::Index(index),
-            RequestedFormat::new::<LumaFormat>(RequestedFormatType::AbsoluteHighestFrameRate),
-        ).unwrap();
+    fn default(mut index: u32) -> Self {
+        let cam = loop {
+            match Camera::new(
+                CameraIndex::Index(index),
+                RequestedFormat::new::<LumaFormat>(
+                    RequestedFormatType::AbsoluteHighestFrameRate
+                ),
+            ) {
+                Ok(cam) => break cam,
+                Err(_) => {
+                    index += 1;
+                    if index > 10 { panic!("main: {}", "could not find sufficient cameras".red()) }
+                    continue;
+                }
+            }
+        };
+
         let res = cam.resolution();
 
         Self {
-            scale: 1,
+            scale: 8,
             camera: cam.index().as_index().unwrap(),
             res: (res.width(), res.height()),
         }

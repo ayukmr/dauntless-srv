@@ -27,7 +27,7 @@ class Canvas extends Component {
   }
 
   color = (c, id) => {
-    return `${c}${id === null ? '33' : 'ff'}`;
+    return `${c}${id === null ? '11' : 'ff'}`;
   };
 
   point = (x, y, color) => {

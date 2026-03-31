@@ -11,11 +11,12 @@ use serde::Serialize;
 
 #[derive(Clone, Serialize)]
 pub struct Meta {
-    pub cams: Vec<(String, Vec<(u32, u32)>)>,
+    n_cams: u32,
+    cams: HashMap<u32, (String, Vec<(u32, u32)>)>,
 }
 
 impl Meta {
-    pub fn new(configs: &Vec<Config>) -> Self {
+    pub fn new(n_cams: u32, configs: &[Config]) -> Self {
         let mut cams = nokhwa::query(ApiBackend::Auto).unwrap();
         cams.sort_by_key(|c| c.index().as_index().unwrap());
 
@@ -30,15 +31,15 @@ impl Meta {
                 .iter()
                 .filter_map(|c| {
                     let idx = c.index().as_index().unwrap();
-                    let set = cam_res.get(&idx).map(|r| *r);
+                    let set = cam_res.get(&idx).copied();
 
                     get_res(c, set)
-                        .map(|res| Some((c.human_name(), res)))
+                        .map(|res| Some((idx, (c.human_name(), res))))
                         .unwrap_or(None)
                 })
                 .collect();
 
-        Self { cams: info }
+        Self { n_cams, cams: info }
     }
 }
 

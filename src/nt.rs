@@ -21,7 +21,7 @@ const UID3: u32 = 4;
 
 const TYPE1: u32 = 4;
 const TYPE2: u32 = 18;
-const TYPE3: u32 = 1;
+pub const TYPE3: u32 = 1;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
@@ -79,8 +79,8 @@ pub fn run(states: Vec<Arc<St>>) {
         let mut nt = loop {
             match init() {
                 Ok(nt) => break nt,
-                Err(_) => {
-                    println!("\rnt: {}", "init failed".red());
+                Err(err) => {
+                    println!("\rnt: {} [reason: {}]", "init failed".red(), err);
                     thread::sleep(Duration::from_millis(2000));
                 }
             }
@@ -108,7 +108,7 @@ fn init() -> Result<NT> {
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, states: &Vec<Arc<St>>) -> Result<()> {
+fn tick(nt: &mut NT, states: &[Arc<St>]) -> Result<()> {
     let (s_tags, times): (Vec<Vec<CameraTag>>, Vec<SystemTime>) =
         states
             .iter()

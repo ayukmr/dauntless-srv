@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use colored::Colorize;
-use rocket::fs::FileServer;
 use rust_embed::Embed;
 use serde_json::{Value, json};
 
@@ -44,7 +43,7 @@ pub fn build(meta: Meta, states: Vec<Arc<St>>) -> Rocket<Build> {
 #[catch(404)]
 fn not_found(req: &Request<'_>) -> String {
     println!("\rweb: {}", "404".red());
-    format!("no such route: {}", req.uri())
+    format!("error with route: {}", req.uri())
 }
 
 #[derive(Embed)]

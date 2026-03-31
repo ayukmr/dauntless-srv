@@ -7,10 +7,10 @@ use rocket::response::Responder;
 
 #[derive(Clone)]
 pub struct Frame {
-    pub width: u32,
-    pub height: u32,
-    pub scale: u32,
-    pub data: Arc<[u8]>,
+    width: u32,
+    height: u32,
+    scale: u32,
+    data: Arc<[u8]>,
 }
 
 impl Frame {

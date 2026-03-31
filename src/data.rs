@@ -15,9 +15,9 @@ use nokhwa::pixel_format::LumaFormat;
 use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType, Resolution};
 
 pub struct St {
-    pub id: u32,
-    pub data: RwLock<Data>,
-    pub config: RwLock<Config>,
+    id: u32,
+    data: RwLock<Data>,
+    config: RwLock<Config>,
 }
 
 pub struct Data {
@@ -31,6 +31,7 @@ pub struct Data {
 #[derive(Clone, Copy, Serialize)]
 pub struct CameraTag {
     pub camera: u32,
+    #[serde(flatten)]
     pub tag: Tag,
 }
 
