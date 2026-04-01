@@ -30,7 +30,7 @@ class CameraSettings extends Component {
           }}
         >
           {Object.entries(this.context.meta.cams).map(([i, cam]) => (
-            <option key={`cam${i}`} value={i}>{cam[0]}</option>
+            <option key={`cam${i}`} value={i}>[{i}] {cam[0]}</option>
           ))}
         </select>
       </div>

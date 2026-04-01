@@ -1,4 +1,5 @@
-use crate::data::{CameraTag, St};
+use crate::data::CameraTag;
+use crate::state::State;
 
 use std::sync::Arc;
 use std::thread;
@@ -74,7 +75,7 @@ impl NT {
     }
 }
 
-pub fn run(states: Vec<Arc<St>>) {
+pub fn run(states: Vec<Arc<State>>) {
     loop {
         let mut nt = loop {
             match init() {
@@ -108,7 +109,7 @@ fn init() -> Result<NT> {
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, states: &[Arc<St>]) -> Result<()> {
+fn tick(nt: &mut NT, states: &[Arc<State>]) -> Result<()> {
     let (s_tags, times): (Vec<Vec<CameraTag>>, Vec<SystemTime>) =
         states
             .iter()

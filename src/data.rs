@@ -1,11 +1,10 @@
-use crate::config::Config;
-use crate::frame::Frame;
+use crate::state::State;
 
 use dauntless::{Detector, Tag};
 use serde::Serialize;
 
 use std::io::{self, Write};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
 use colored::Colorize;
@@ -14,17 +13,11 @@ use nokhwa::Camera;
 use nokhwa::pixel_format::LumaFormat;
 use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType, Resolution};
 
-pub struct St {
-    id: u32,
-    data: RwLock<Data>,
-    config: RwLock<Config>,
-}
-
 pub struct Data {
     pub ms: Option<f32>,
     pub tags: Vec<CameraTag>,
-    pub frame: Option<Frame>,
-    pub mask: Option<Frame>,
+    pub frame: Option<Vec<u8>>,
+    pub mask: Option<Vec<u8>>,
     pub time: SystemTime,
 }
 
@@ -47,31 +40,7 @@ impl Default for Data {
     }
 }
 
-impl St {
-    pub fn new(id: u32, config: Config) -> Self {
-        Self {
-            id,
-            config: config.into(),
-            data: Data::default().into(),
-        }
-    }
-
-    pub fn data(&self) -> RwLockReadGuard<'_, Data> {
-        self.data.read().unwrap()
-    }
-    pub fn data_wr(&self) -> RwLockWriteGuard<'_, Data> {
-        self.data.write().unwrap()
-    }
-
-    pub fn config(&self) -> RwLockReadGuard<'_, Config> {
-        self.config.read().unwrap()
-    }
-    pub fn config_wr(&self) -> RwLockWriteGuard<'_, Config> {
-        self.config.write().unwrap()
-    }
-}
-
-pub fn update(state: &Arc<St>) {
+pub fn update(state: &Arc<State>) {
     let (mut cam_idx, mut w, mut h, mut scale) = {
         let config = state.config();
         (config.server.camera, config.server.res.0, config.server.res.1, config.server.scale)
@@ -160,8 +129,10 @@ pub fn update(state: &Arc<St>) {
         }
         tick += 1;
 
-        let fm = encode(w, h, scale, &scale_knl, &data, &mut fs, &mut rsz);
-        let mm = encode(w, h, scale, &scale_knl, &mask, &mut fs, &mut rsz);
+        encode(w, h, scale, &scale_knl, &data, &mut fs, &mut rsz);
+        let fm = rsz.clone();
+        encode(w, h, scale, &scale_knl, &mask, &mut fs, &mut rsz);
+        let mm = rsz.clone();
 
         {
             let update = Data {
@@ -172,8 +143,11 @@ pub fn update(state: &Arc<St>) {
                 time: SystemTime::now(),
             };
 
-            *state.data_wr() = update;
+            *state.data() = update;
         }
+
+        state.notify.notify_waiters();
+        state.all_notify.notify_waiters();
     }
 }
 
@@ -224,13 +198,12 @@ fn encode<T: Into<f32> + Copy>(
     data: &[T],
     fs: &mut [u8],
     rsz: &mut [u8],
-) -> Frame {
+) {
     for i in 0..fs.len() {
         fs[i] = (data[i].into() * 255.0) as u8;
     }
 
     resize(w, h, scale, scale_knl, fs, rsz);
-    Frame::encode(w / scale, h / scale, scale, rsz)
 }
 
 fn resize(w: u32, h: u32, scale: u32, scale_knl: &[f32], img: &[u8], out: &mut [u8])  {

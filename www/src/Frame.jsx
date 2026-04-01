@@ -7,35 +7,53 @@ class Frame extends Canvas {
 
   componentDidMount() {
     super.componentDidMount();
-
-    this.interval = setInterval(
-      async () => {
-        try {
-          await this.fetch();
-          this.context.updateError(this.props.url, false);
-        } catch {
-          this.context.updateError(this.props.url, true);
-        }
-      },
-      50
-    );
+    this.connectWS();
   }
 
   componentWillUnmount() {
     super.componentWillUnmount();
-    clearInterval(this.interval);
+    this.disconnectWS();
   }
 
-  fetch = async () => {
-    const curURL = this.props.url;
-    const res = await fetch(curURL);
-    if (curURL !== this.props.url) return;
+  componentDidUpdate(prev) {
+    if (prev.url !== this.props.url) {
+      this.disconnectWS();
+      this.connectWS();
+    }
+  }
 
-    const w = +res.headers.get('X-Width');
-    const h = +res.headers.get('X-Height');
-    const scale = +res.headers.get('X-Scale');
+  connectWS = () => {
+    this.ws = new WebSocket(this.props.url);
+    this.ws.binaryType = 'arraybuffer';
 
-    const buf = new Uint8Array(await res.arrayBuffer());
+    this.ws.onmessage = (event) => {
+      const buf = new Uint8Array(event.data);
+      this.load(buf);
+      this.context.updateError(this.props.url, false);
+    };
+
+    this.ws.onerror = () => {
+      this.context.updateError(this.props.url, true);
+    };
+  };
+
+  disconnectWS = () => {
+    if (!this.ws) return;
+
+    this.ws.onclose = null;
+    this.ws.onerror = null;
+    this.ws.onmessage = null;
+
+    this.ws.close();
+    this.ws = null;
+  };
+
+  load = (buf) => {
+    const { server } = this.context.config;
+
+    const { scale } = server;
+    const [w, h] = server.res;
+
     const img = new ImageData(w, h);
 
     for (let i = 0; i < buf.length; i++) {

@@ -14,12 +14,46 @@ class Provider extends Component {
   componentDidMount() {
     this.fetchMeta();
     this.fetchConfig();
-    this.interval = setInterval(() => this.fetchData(), 50);
+    this.connectWS();
   }
 
   componentWillUnmount() {
-    clearInterval(this.interval);
+    super.componentWillUnmount();
+    this.disconnectWS();
   }
+
+  componentDidUpdate(prev) {
+    if (prev.id !== this.props.id) {
+      this.disconnectWS();
+      this.connectWS();
+    }
+  }
+
+  connectWS = () => {
+    const url = `/api/${this.state.id}/data`;
+    this.ws = new WebSocket(url);
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.setState({ data });
+      this.updateError(url, false);
+    };
+
+    this.ws.onerror = () => {
+      this.updateError(url, true);
+    };
+  };
+
+  disconnectWS = () => {
+    if (!this.ws) return;
+
+    this.ws.onclose = null;
+    this.ws.onerror = null;
+    this.ws.onmessage = null;
+
+    this.ws.close();
+    this.ws = null;
+  };
 
   isLoaded = () => {
     const { data, meta, config } = this.state;
@@ -57,18 +91,14 @@ class Provider extends Component {
     }));
   };
 
-  fetch = async (path, key) => {
+  fetch = async (url, key) => {
     try {
-      const res = await fetch(path);
+      const res = await fetch(url);
       this.setState({ [key]: await res.json() });
-      this.updateError(path, false);
+      this.updateError(url, false);
     } catch {
-      this.updateError(path, true);
+      this.updateError(url, true);
     }
-  };
-
-  fetchData = async () => {
-    await this.fetch(`/api/${this.state.id}/data`, 'data');
   };
 
   fetchMeta = async () => {
