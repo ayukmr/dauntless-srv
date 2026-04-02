@@ -10,7 +10,7 @@ use tokio::sync::Notify;
 pub struct States {
     pub states: Vec<Arc<State>>,
     pub meta: Meta,
-    notify: Arc<Notify>,
+    pub notify: Arc<Notify>,
 }
 
 impl States {

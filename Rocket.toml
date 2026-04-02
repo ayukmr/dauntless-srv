@@ -1,0 +1,3 @@
+[default]
+log_level = "off"
+shutdown = { grace = 0, mercy = 0 }

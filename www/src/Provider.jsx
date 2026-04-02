@@ -22,13 +22,6 @@ class Provider extends Component {
     this.disconnectWS();
   }
 
-  componentDidUpdate(prev) {
-    if (prev.id !== this.props.id) {
-      this.disconnectWS();
-      this.connectWS();
-    }
-  }
-
   connectWS = () => {
     const url = `/api/${this.state.id}/data`;
     this.ws = new WebSocket(url);
@@ -79,7 +72,11 @@ class Provider extends Component {
   };
 
   updateID = (id) => {
-    this.setState({ id }, () => this.fetchConfig());
+    this.setState({ id }, () => {
+      this.fetchConfig();
+      this.disconnectWS();
+      this.connectWS();
+    });
   };
 
   updateError = (key, on) => {

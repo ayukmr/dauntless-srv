@@ -10,6 +10,7 @@ use anyhow::Result;
 use colored::Colorize;
 use serde::Serialize;
 
+use tokio::sync::Notify;
 use tungstenite::{Message, WebSocket};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::client::IntoClientRequest;
@@ -75,7 +76,7 @@ impl NT {
     }
 }
 
-pub fn run(states: Vec<Arc<State>>) {
+pub async fn run(states: Vec<Arc<State>>, notify: Arc<Notify>) {
     loop {
         let mut nt = loop {
             match init() {
@@ -94,7 +95,7 @@ pub fn run(states: Vec<Arc<State>>) {
                 println!("\rnt: {}", "tick failed".red());
                 break;
             }
-            thread::sleep(Duration::from_millis(20));
+            notify.notified().await;
         }
     }
 }
@@ -109,7 +110,7 @@ fn init() -> Result<NT> {
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, states: &[Arc<State>]) -> Result<()> {
+fn tick(nt: &mut NT, states: &Vec<Arc<State>>) -> Result<()> {
     let (s_tags, times): (Vec<Vec<CameraTag>>, Vec<SystemTime>) =
         states
             .iter()

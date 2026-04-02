@@ -9,12 +9,10 @@ mod web;
 
 use crate::state::States;
 
-use std::thread;
-
 use colored::Colorize;
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     let n_cams =
         std::env::var("N_CAMS")
             .ok()
@@ -26,7 +24,9 @@ fn rocket() -> _ {
     let states = States::new(n_cams);
 
     let sts = states.states.iter().map(|s| s.clone()).collect();
-    thread::spawn(move || nt::run(sts));
+    let ntfy = states.notify.clone();
+
+    tokio::spawn(nt::run(sts, ntfy));
 
     web::build(states)
 }

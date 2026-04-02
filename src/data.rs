@@ -66,7 +66,7 @@ pub fn update(state: &Arc<State>) {
             if (cam_idx, w, h) != (new_idx, new_w, new_h) {
                 camera.stop_stream().unwrap();
 
-                if cam_idx != new_idx {
+                if cam_idx != new_idx || cfg!(target_os = "macos") {
                     camera = create_camera(new_idx, new_w, new_h);
                 } else {
                     camera.set_camera_requset(

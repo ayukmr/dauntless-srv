@@ -49,15 +49,16 @@ class Frame extends Canvas {
   };
 
   load = (buf) => {
-    const { server } = this.context.config;
+    const { scale, res: [sw, sh] } = this.context.config.server;
 
-    const { scale } = server;
-    const [w, h] = server.res;
+    const w = sw / scale;
+    const h = sh / scale;
 
     const img = new ImageData(w, h);
 
     for (let i = 0; i < buf.length; i++) {
       const v = buf[i];
+
       img.data[i * 4 + 0] = v;
       img.data[i * 4 + 1] = v;
       img.data[i * 4 + 2] = v;
