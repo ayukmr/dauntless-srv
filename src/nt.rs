@@ -72,7 +72,7 @@ impl NT {
     }
 
     fn send(&mut self, uid: u32, ty: u32, val: impl Serialize) -> Result<()> {
-        let buf = rmp_serde::to_vec(&(uid, now() + self.delta as i64, ty, val))?;
+        let buf = rmp_serde::to_vec(&(uid, now() + self.delta, ty, val))?;
         self.ws.send(Message::Binary(buf.into()))?;
 
         Ok(())
@@ -120,7 +120,7 @@ fn tick(nt: &mut NT, states: &[Arc<State>]) -> Result<()> {
             .flat_map(|st| st.data().tags.clone())
             .filter_map(|t| {
                 t.tag.id.map(|id| {
-                    let mut tag = t.clone();
+                    let mut tag = t;
                     tag.time += nt.delta as f64 / 1_000_000.0;
                     (tag, id)
                 })

@@ -76,7 +76,7 @@ input[type=checkbox] ~ label {
 .lucide {
   width: 18px;
   margin-right: 2px;
-  vertical-align: top;
+  vertical-align: text-top;
 }
 
 .popup-bg {
