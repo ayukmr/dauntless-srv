@@ -23,7 +23,7 @@ async fn rocket() -> _ {
 
     let states = States::new(n_cams);
 
-    let sts = states.states.iter().map(|s| s.clone()).collect();
+    let sts = states.states.clone();
     let ntfy = states.notify.clone();
 
     tokio::spawn(nt::run(sts, ntfy));

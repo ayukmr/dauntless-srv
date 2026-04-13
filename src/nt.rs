@@ -17,13 +17,14 @@ use tungstenite::client::IntoClientRequest;
 
 const HOST: &str = "ws://10.49.4.2:5810/nt/dauntless";
 
-const UID1: u32 = 16;
-const UID2: u32 = 8;
-const UID3: u32 = 4;
+const UID_JSON: u32 = 16;
+const UID_IDS: u32 = 8;
+const UID_TIME: u32 = 4;
 
-const TYPE1: u32 = 4;
-const TYPE2: u32 = 18;
-pub const TYPE3: u32 = 1;
+const TYPE_JSON: u32 = 4;
+const TYPE_INTLIST: u32 = 18;
+const TYPE_DOUBLE: u32 = 1;
+const TYPE_INT: u32 = 2;
 
 struct NT {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
@@ -32,16 +33,16 @@ struct NT {
 
 impl NT {
     fn new() -> Result<Self> {
-        let mut req = HOST.into_client_request().unwrap();
+        let mut req = HOST.into_client_request()?;
         req.headers_mut().insert(
             "Sec-WebSocket-Protocol",
-            "v4.1.networktables.first.wpi.edu".parse().unwrap(),
+            "v4.1.networktables.first.wpi.edu".parse()?,
         );
 
         let (mut ws, _) = tungstenite::connect(req)?;
 
         let local = now();
-        let buf = rmp_serde::to_vec(&(-1i64, 0i64, 2u32, local)).unwrap();
+        let buf = rmp_serde::to_vec(&(-1i64, 0i64, TYPE_INT, local))?;
 
         ws.send(Message::Binary(buf.into()))?;
         let msg = ws.read()?;
@@ -49,8 +50,8 @@ impl NT {
         let (_, server, _, t0): (i64, i64, u32, i64) = rmp_serde::from_slice(&msg.into_data())?;
         let t1 = now();
 
-        let rtt = t1 - t0;
-        let delta = server + rtt / 2 - t0;
+        let tt = (t1 - t0) / 2;
+        let delta = server - (t1 - tt);
 
         Ok(Self { ws, delta })
     }
@@ -66,12 +67,14 @@ impl NT {
             },
         }]);
         self.ws.send(Message::Text(msg.to_string().into()))?;
+
         Ok(())
     }
 
     fn send(&mut self, uid: u32, ty: u32, val: impl Serialize) -> Result<()> {
-        let buf = rmp_serde::to_vec(&(uid, now() + self.delta, ty, val)).unwrap();
+        let buf = rmp_serde::to_vec(&(uid, now() + self.delta as i64, ty, val))?;
         self.ws.send(Message::Binary(buf.into()))?;
+
         Ok(())
     }
 }
@@ -91,8 +94,8 @@ pub async fn run(states: Vec<Arc<State>>, notify: Arc<Notify>) {
         println!("\rnt: {}", "connected".green());
 
         loop {
-            if tick(&mut nt, &states).is_err() {
-                println!("\rnt: {}", "tick failed".red());
+            if let Err(err) = tick(&mut nt, &states) {
+                println!("\rnt: {} [reason: {}]", "tick failed".red(), err);
                 break;
             }
             notify.notified().await;
@@ -103,37 +106,32 @@ pub async fn run(states: Vec<Arc<State>>, notify: Arc<Notify>) {
 fn init() -> Result<NT> {
     let mut nt = NT::new()?;
 
-    nt.publish("/dauntless/tags", UID1, "json")?;
-    nt.publish("/dauntless/ids", UID2, "int[]")?;
-    nt.publish("/dauntless/time", UID3, "double")?;
+    nt.publish("/dauntless/tags", UID_JSON, "json")?;
+    nt.publish("/dauntless/ids", UID_IDS, "int[]")?;
+    nt.publish("/dauntless/time", UID_TIME, "double")?;
 
     Ok(nt)
 }
 
-fn tick(nt: &mut NT, states: &Vec<Arc<State>>) -> Result<()> {
-    let (s_tags, times): (Vec<Vec<CameraTag>>, Vec<SystemTime>) =
+fn tick(nt: &mut NT, states: &[Arc<State>]) -> Result<()> {
+    let (tags, ids): (Vec<CameraTag>, Vec<u32>) =
         states
             .iter()
-            .map(|st| {
-                let data = st.data();
-                (data.tags.clone(), data.time)
+            .flat_map(|st| st.data().tags.clone())
+            .filter_map(|t| {
+                t.tag.id.map(|id| {
+                    let mut tag = t.clone();
+                    tag.time += nt.delta as f64 / 1_000_000.0;
+                    (tag, id)
+                })
             })
             .unzip();
 
-    let (tags, ids): (Vec<CameraTag>, Vec<u32>) =
-        s_tags
-            .iter()
-            .flatten()
-            .filter_map(|t| t.tag.id.map(|id| (t, id)))
-            .unzip();
+    let json = serde_json::to_string(&tags)?;
 
-    let json = serde_json::to_string(&tags).unwrap();
-
-    let time = times.iter().max().unwrap();
-
-    nt.send(UID1, TYPE1, json)?;
-    nt.send(UID2, TYPE2, ids)?;
-    nt.send(UID3, TYPE3, time.duration_since(UNIX_EPOCH)?.as_secs_f64())?;
+    nt.send(UID_JSON, TYPE_JSON, json)?;
+    nt.send(UID_IDS, TYPE_INTLIST, ids)?;
+    nt.send(UID_TIME, TYPE_DOUBLE, SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64())?;
 
     Ok(())
 }

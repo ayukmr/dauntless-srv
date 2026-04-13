@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use std::io::{self, Write};
 use std::sync::Arc;
-use std::time::{Instant, SystemTime};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use colored::Colorize;
 
@@ -13,31 +13,20 @@ use nokhwa::Camera;
 use nokhwa::pixel_format::LumaFormat;
 use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType, Resolution};
 
+#[derive(Default)]
 pub struct Data {
     pub ms: Option<f32>,
     pub tags: Vec<CameraTag>,
     pub frame: Option<Vec<u8>>,
     pub mask: Option<Vec<u8>>,
-    pub time: SystemTime,
 }
 
 #[derive(Clone, Copy, Serialize)]
 pub struct CameraTag {
     pub camera: u32,
+    pub time: f64,
     #[serde(flatten)]
     pub tag: Tag,
-}
-
-impl Default for Data {
-    fn default() -> Self {
-        Self {
-            ms: None,
-            tags: Vec::new(),
-            frame: None,
-            mask: None,
-            time: SystemTime::now(),
-        }
-    }
 }
 
 pub fn update(state: &Arc<State>) {
@@ -92,6 +81,8 @@ pub fn update(state: &Arc<State>) {
         };
 
         let frame = camera.frame().unwrap();
+        let frame_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
+
         let decoded = frame.decode_image::<LumaFormat>().unwrap();
         let bytes = decoded.to_vec();
 
@@ -134,13 +125,18 @@ pub fn update(state: &Arc<State>) {
         encode(w, h, scale, &scale_knl, &mask, &mut fs, &mut rsz);
         let mm = rsz.clone();
 
+        let cam_tags =
+            tags
+                .iter()
+                .map(|t| CameraTag { time: frame_time, camera: state.id, tag: *t })
+                .collect();
+
         {
             let update = Data {
-                tags: tags.iter().map(|t| CameraTag { camera: state.id, tag: *t }).collect(),
+                tags: cam_tags,
                 ms: Some(ms),
                 frame: Some(fm),
                 mask: Some(mm),
-                time: SystemTime::now(),
             };
 
             *state.data() = update;
